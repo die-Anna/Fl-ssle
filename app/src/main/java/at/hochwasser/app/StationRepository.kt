@@ -12,6 +12,6 @@ class StationRepository {
     suspend fun load(): List<Station> = withContext(Dispatchers.IO) { client.fetchStations() }
 
     companion object {
-        const val USER_AGENT = "Fluessle/0.4 (Android; privat)"
+        const val USER_AGENT = "Fluessle/0.5 (Android; privat)"
     }
 }
