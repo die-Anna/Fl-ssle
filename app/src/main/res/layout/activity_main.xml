@@ -141,9 +141,12 @@
         android:paddingBottom="8dp">
 
         <LinearLayout
+            android:id="@+id/status_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
             android:gravity="center_vertical"
+            android:minHeight="40dp"
             android:orientation="horizontal">
 
             <ImageView
@@ -167,9 +170,19 @@
                 style="?android:attr/progressBarStyleSmall"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
+
+            <ImageView
+                android:id="@+id/status_toggle"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="6dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_expand"
+                app:tint="@color/text_strong" />
         </LinearLayout>
 
         <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/status_buttons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
@@ -280,12 +293,30 @@
             android:paddingBottom="12dp"
             android:visibility="gone">
 
-            <View
-                android:layout_width="40dp"
-                android:layout_height="4dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="10dp"
-                android:background="#33000000" />
+            <!-- Griff: Antippen klappt Verlauf und Tendenz ein oder aus -->
+            <FrameLayout
+                android:id="@+id/sheet_handle"
+                android:layout_width="match_parent"
+                android:layout_height="24dp"
+                android:layout_marginBottom="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="Details ein- oder ausklappen">
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="4dp"
+                    android:layout_gravity="center"
+                    android:background="#33000000" />
+
+                <ImageView
+                    android:id="@+id/sheet_toggle"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_expand"
+                    app:tint="@color/text_muted" />
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/sheet_main"
@@ -386,6 +417,12 @@
                     app:tint="@color/text_strong" />
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/sheet_details"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
             <at.hochwasser.app.ChartView
                 android:id="@+id/sheet_chart"
                 android:layout_width="match_parent"
@@ -415,6 +452,7 @@
                     android:layout_marginStart="10dp"
                     android:textColor="@color/text_strong"
                     android:textSize="16sp" />
+            </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 

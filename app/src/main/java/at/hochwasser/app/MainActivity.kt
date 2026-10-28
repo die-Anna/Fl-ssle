@@ -140,7 +140,10 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        buildLegend()
+        findViewById<View>(R.id.status_header).setOnClickListener { toggle(KEY_COLLAPSE_STATUS) }
+        findViewById<View>(R.id.legend).setOnClickListener { toggle(KEY_COLLAPSE_LEGEND) }
+        findViewById<View>(R.id.sheet_handle).setOnClickListener { toggle(KEY_COLLAPSE_SHEET) }
+        applyCollapsed()
         refresh()
     }
 
@@ -474,8 +477,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    private fun buildLegend() {
+    // --- Einklappen: Statuskarte, Legende und Stationskarte, Zustand bleibt gespeichert ---
+
+    private fun collapsed(key: String) = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(key, false)
+
+    private fun toggle(key: String) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(key, !collapsed(key)).apply()
+        applyCollapsed()
+    }
+
+    private fun applyCollapsed() {
+        val status = collapsed(KEY_COLLAPSE_STATUS)
+        findViewById<View>(R.id.status_buttons).visibility = if (status) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.status_toggle).rotation = if (status) 0f else 180f
+
+        val sheet = collapsed(KEY_COLLAPSE_SHEET)
+        findViewById<View>(R.id.sheet_details).visibility = if (sheet) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.sheet_toggle).rotation = if (sheet) 180f else 0f
+
+        buildLegend(compact = collapsed(KEY_COLLAPSE_LEGEND))
+    }
+
+    /** Eingeklappt zeigt die Legende nur die Farbpunkte, ausgeklappt auch die Namen. */
+    private fun buildLegend(compact: Boolean) {
         val legend = findViewById<ViewGroup>(R.id.legend)
+        legend.removeAllViews()
+        legend.contentDescription = if (compact) "Legende ausklappen" else "Legende einklappen"
         val entries = listOf(
             FlowClass.LOW to "niedrig", FlowClass.NORMAL to "normal", FlowClass.HQ1 to "HQ1",
             FlowClass.HQ5 to "HQ5", FlowClass.HQ10 to "HQ10", FlowClass.HQ30 to "HQ30",
@@ -483,7 +510,7 @@ class MainActivity : AppCompatActivity() {
         val density = resources.displayMetrics.density
         for ((cls, label) in entries) {
             val tv = TextView(this)
-            tv.text = label
+            tv.text = if (compact) "" else label
             tv.textSize = 14f
             tv.setTextColor(ContextCompat.getColor(this, R.color.text_strong))
             tv.compoundDrawablePadding = (4 * density).toInt()
@@ -726,6 +753,9 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "settings"
         private const val KEY_MAP_STYLE = "map_style"
         private const val KEY_FAVORITE = "favorite_hzb"
+        private const val KEY_COLLAPSE_STATUS = "collapse_status"
+        private const val KEY_COLLAPSE_LEGEND = "collapse_legend"
+        private const val KEY_COLLAPSE_SHEET = "collapse_sheet"
         private const val STYLE_STANDARD = "standard"
         private const val STYLE_TOPO = "topo"
     }
