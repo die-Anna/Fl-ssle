@@ -157,11 +157,13 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         progress.visibility = View.VISIBLE
         status.setText(R.string.loading)
+        statusNeeded = true
+        updateStatusCard()
         lifecycleScope.launch {
             val result = runCatching { repository.load() }
             progress.visibility = View.GONE
             result.onSuccess { lastLoad = System.currentTimeMillis(); show(it) }
-                .onFailure { status.text = "Fehler beim Laden: ${it.message}" }
+                .onFailure { status.text = "Fehler beim Laden: ${it.message}"; statusNeeded = true; updateStatusCard() }
         }
     }
 
@@ -191,6 +193,9 @@ class MainActivity : AppCompatActivity() {
             latest?.let { append(" · Stand ${timeFormat.format(it)}") }
             if (floods > 0) append("\n$floods über HQ1!")
         }
+        // Die Statuszeile nur zeigen, wenn es eine Hochwasser-Warnung gibt
+        statusNeeded = floods > 0
+        updateStatusCard()
 
         // Ausgewählte Station behalten, sonst die kritischste zeigen
         val keep = selected?.let { old -> stations.firstOrNull { it.reading.hzbNr == old.reading.hzbNr } }
@@ -210,7 +215,8 @@ class MainActivity : AppCompatActivity() {
     private fun fitVorarlberg() {
         val h = map.height.toDouble()
         if (h <= 0) return
-        val top = findViewById<View>(R.id.status_card).bottom.toDouble()
+        val card = findViewById<View>(R.id.status_card)
+        val top = if (card.visibility == View.VISIBLE) card.bottom.toDouble() else resources.getDimension(R.dimen.status_card_top).toDouble()
         val column = findViewById<View>(R.id.bottom_column)
         val bottom = h - (column.top + findViewById<View>(R.id.legend).top)
         val free = (1 - (top + bottom) / h).coerceAtLeast(0.25)
@@ -317,15 +323,24 @@ class MainActivity : AppCompatActivity() {
 
     // --- Reiter ---
 
+    /** Statuszeile nur beim Laden, bei Fehlern und bei Hochwasser auf der Karte zeigen. */
+    private var statusNeeded = true
+
+    private fun updateStatusCard() {
+        val onMap = nav.selectedItemId == R.id.nav_map
+        findViewById<View>(R.id.status_card).visibility = if (onMap && statusNeeded) View.VISIBLE else View.GONE
+    }
+
     private fun showTab(id: Int) {
         val onMap = id == R.id.nav_map
         findViewById<View>(R.id.panels).visibility = if (onMap) View.GONE else View.VISIBLE
         findViewById<View>(R.id.panel_list).visibility = if (id == R.id.nav_list) View.VISIBLE else View.GONE
         findViewById<View>(R.id.panel_alarms).visibility = if (id == R.id.nav_alarms) View.VISIBLE else View.GONE
         findViewById<View>(R.id.panel_settings).visibility = if (id == R.id.nav_settings) View.VISIBLE else View.GONE
-        for (v in listOf(R.id.status_card, R.id.map_controls, R.id.legend)) {
+        for (v in listOf(R.id.map_controls, R.id.legend)) {
             findViewById<View>(v).visibility = if (onMap) View.VISIBLE else View.GONE
         }
+        updateStatusCard()
         findViewById<View>(R.id.sheet).visibility = if (onMap && selected != null) View.VISIBLE else View.GONE
         when (id) {
             R.id.nav_list -> buildList()
