@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Flüssle</string>
+    <string name="refresh">Aktualisieren</string>
+    <string name="alarms">Alarme</string>
+    <string name="loading">Lade Pegeldaten …</string>
+    <string name="attribution">Daten: Land Vorarlberg (Rohdaten, ohne Gewähr) · Karte: © OpenStreetMap-Mitwirkende</string>
+    <string name="history">Verlauf</string>
+    <string name="set_alarm">Alarm …</string>
+    <string name="font_size">Schriftgröße</string>
+    <string name="zoom_in">Hineinzoomen</string>
+    <string name="zoom_out">Herauszoomen</string>
+    <string name="back">Zurück</string>
+    <string name="app_title">Flüssle</string>
+    <string name="app_subtitle">Flüsse. Werte. Sicherheit.</string>
+    <string name="view_button">Aa  Ansicht</string>
+    <string name="settings">Einstellungen</string>
+    <string name="my_location">Mein Standort</string>
+    <string name="close">Schließen</string>
+</resources>

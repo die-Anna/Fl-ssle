@@ -1,0 +1,5 @@
+<resources>
+    <dimen name="header_height">128dp</dimen>
+    <dimen name="status_card_top">104dp</dimen>
+    <dimen name="nav_height">72dp</dimen>
+</resources>

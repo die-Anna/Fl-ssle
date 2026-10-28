@@ -1,0 +1,31 @@
+<resources>
+    <style name="Theme.Hochwasser" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="android:statusBarColor">#CFE8FB</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Helle Pillen-Knöpfe in der schwebenden Karte -->
+    <style name="PillButton" parent="Widget.Material3.Button.TonalButton.Icon">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="iconPadding">4dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:textColor">@color/text_strong</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">#EAF3FC</item>
+        <item name="iconTint">@color/primary</item>
+        <item name="iconSize">18dp</item>
+    </style>
+
+    <style name="NavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">#E3EFFC</item>
+    </style>
+</resources>

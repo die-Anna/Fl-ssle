@@ -1,0 +1,7 @@
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="primary">#1565C0</color>
+    <color name="text_strong">#102A43</color>
+    <color name="text_muted">#52606D</color>
+    <color name="panel_bg">#FAFCFE</color>
+</resources>
