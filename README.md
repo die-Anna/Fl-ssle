@@ -42,3 +42,13 @@ Auf der Kommandozeile (mit JDK 21, nicht dem Java 25 aus Android Studio): `gradl
 ## Nächste Schritte
 
 - Weitere Regionen über den Bundes-Datensatz „Aktuelle Pegelstände Österreich“ (eHYD, CC BY 4.0, nur aktuelle Werte).
+
+## Hinweis
+
+Flüssle ist ein privates Projekt und keine offizielle App des Landes Vorarlberg. Die Werte sind ungeprüfte Rohdaten.
+Bei Hochwasser gelten immer die offiziellen Warnungen von Land, Gemeinde und Einsatzkräften.
+
+## Lizenz
+
+Code: [MIT](LICENSE). Das Logo wurde mit ChatGPT erstellt.
+Pegeldaten: Land Vorarlberg (vowis), Kartenkacheln: © OpenStreetMap-Mitwirkende bzw. OpenTopoMap (CC-BY-SA).
