@@ -144,7 +144,6 @@
             android:id="@+id/status_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
             android:gravity="center_vertical"
             android:minHeight="40dp"
             android:orientation="horizontal">
@@ -170,37 +169,7 @@
                 style="?android:attr/progressBarStyleSmall"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
-
-            <ImageView
-                android:id="@+id/status_toggle"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginStart="6dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_expand"
-                app:tint="@color/text_strong" />
         </LinearLayout>
-
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/status_buttons"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            app:flexWrap="wrap"
-            app:justifyContent="space_between">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/font_size"
-                style="@style/PillButton"
-                android:text="@string/view_button" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/alarms"
-                style="@style/PillButton"
-                android:text="@string/alarms"
-                app:icon="@drawable/ic_bell" />
-
-        </com.google.android.flexbox.FlexboxLayout>
     </LinearLayout>
 
     <!-- Unten: Legende, Stationskarte, Navigation -->

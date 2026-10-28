@@ -123,8 +123,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.zoom_out).setOnClickListener { map.controller.zoomOut() }
         findViewById<ImageButton>(R.id.locate).setOnClickListener { locate() }
         findViewById<ImageButton>(R.id.menu).setOnClickListener { nav.selectedItemId = R.id.nav_settings }
-        findViewById<MaterialButton>(R.id.alarms).setOnClickListener { nav.selectedItemId = R.id.nav_alarms }
-        findViewById<MaterialButton>(R.id.font_size).setOnClickListener { chooseFontSize() }
         findViewById<View>(R.id.sheet_main).setOnClickListener {
             selected?.let { startActivity(HistoryActivity.intent(this, it)) }
         }
@@ -139,7 +137,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        findViewById<View>(R.id.status_header).setOnClickListener { toggle(KEY_COLLAPSE_STATUS) }
         findViewById<View>(R.id.legend).setOnClickListener { toggle(KEY_COLLAPSE_LEGEND) }
         findViewById<View>(R.id.sheet_handle).setOnClickListener { toggle(KEY_COLLAPSE_SHEET) }
         applyCollapsed()
@@ -498,9 +495,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyCollapsed() {
-        val status = collapsed(KEY_COLLAPSE_STATUS)
-        findViewById<View>(R.id.status_buttons).visibility = if (status) View.GONE else View.VISIBLE
-        findViewById<View>(R.id.status_toggle).rotation = if (status) 0f else 180f
 
         val sheet = collapsed(KEY_COLLAPSE_SHEET)
         findViewById<View>(R.id.sheet_details).visibility = if (sheet) View.GONE else View.VISIBLE
@@ -764,7 +758,6 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "settings"
         private const val KEY_MAP_STYLE = "map_style"
         private const val KEY_FAVORITE = "favorite_hzb"
-        private const val KEY_COLLAPSE_STATUS = "collapse_status"
         private const val KEY_COLLAPSE_LEGEND = "collapse_legend"
         private const val KEY_COLLAPSE_SHEET = "collapse_sheet"
         private const val STYLE_STANDARD = "standard"
