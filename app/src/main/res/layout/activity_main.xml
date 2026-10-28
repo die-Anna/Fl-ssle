@@ -200,11 +200,6 @@
                 android:text="@string/alarms"
                 app:icon="@drawable/ic_bell" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/refresh"
-                style="@style/PillButton"
-                android:text="@string/refresh"
-                app:icon="@drawable/ic_refresh" />
         </com.google.android.flexbox.FlexboxLayout>
     </LinearLayout>
 

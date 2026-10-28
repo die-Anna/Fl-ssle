@@ -123,7 +123,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.zoom_out).setOnClickListener { map.controller.zoomOut() }
         findViewById<ImageButton>(R.id.locate).setOnClickListener { locate() }
         findViewById<ImageButton>(R.id.menu).setOnClickListener { nav.selectedItemId = R.id.nav_settings }
-        findViewById<MaterialButton>(R.id.refresh).setOnClickListener { refresh() }
         findViewById<MaterialButton>(R.id.alarms).setOnClickListener { nav.selectedItemId = R.id.nav_alarms }
         findViewById<MaterialButton>(R.id.font_size).setOnClickListener { chooseFontSize() }
         findViewById<View>(R.id.sheet_main).setOnClickListener {
@@ -147,8 +146,16 @@ class MainActivity : AppCompatActivity() {
         refresh()
     }
 
-    override fun onResume() { super.onResume(); map.onResume(); locationOverlay?.enableMyLocation() }
+    override fun onResume() {
+        super.onResume()
+        map.onResume()
+        locationOverlay?.enableMyLocation()
+        // Ohne eigenen Knopf: beim Zurückkehren neu laden, wenn die Daten älter als 10 Minuten sind
+        if (lastLoad != 0L && System.currentTimeMillis() - lastLoad > 10 * 60_000L) refresh()
+    }
     override fun onPause() { super.onPause(); map.onPause(); locationOverlay?.disableMyLocation() }
+
+    private var lastLoad = 0L
 
     private fun refresh() {
         progress.visibility = View.VISIBLE
@@ -156,7 +163,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val result = runCatching { repository.load() }
             progress.visibility = View.GONE
-            result.onSuccess { show(it) }
+            result.onSuccess { lastLoad = System.currentTimeMillis(); show(it) }
                 .onFailure { status.text = "Fehler beim Laden: ${it.message}" }
         }
     }
@@ -414,6 +421,10 @@ class MainActivity : AppCompatActivity() {
         box.addView(settingRow("Hauptpegel", favName ?: "keiner (Stern in der Stationskarte antippen)") { chooseFavorite() })
         box.addView(settingRow("Kartenstil", if (mapStyle() == STYLE_TOPO) "Gelände" else "Standard") { chooseMapStyle() })
         box.addView(settingRow(getString(R.string.alarms), "${alarms.rules().size} eingerichtet") { nav.selectedItemId = R.id.nav_alarms })
+        box.addView(settingRow("Daten aktualisieren", status.text.toString()) {
+            refresh()
+            nav.selectedItemId = R.id.nav_map
+        })
         box.addView(heading("Datenquellen"))
         box.addView(hint(getString(R.string.attribution)))
         box.addView(hint("Pegeldaten von vowis.vorarlberg.at. Das sind ungeprüfte Rohdaten. " +
