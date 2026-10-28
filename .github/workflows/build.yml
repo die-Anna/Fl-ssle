@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Version für ein Release mit APK, z.B. v0.3 (leer = nur bauen)"
+        required: false
 
 permissions:
   contents: write
@@ -30,9 +34,12 @@ jobs:
         with:
           name: flussle-apk
           path: flussle-*.apk
-      # Bei einem Tag wie v0.3 wird automatisch ein Release mit der APK angelegt
+      # Bei einem Tag wie v0.3 (oder manuell mit Version) wird ein Release mit der APK angelegt
       - name: Release anlegen
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" flussle-*.apk --title "$GITHUB_REF_NAME" --generate-notes
+          VERSION: ${{ inputs.release || github.ref_name }}
+        run: |
+          cp flussle-*.apk "flussle-$VERSION.apk" 2>/dev/null || true
+          gh release create "$VERSION" "flussle-$VERSION.apk" --target "$GITHUB_SHA" --title "Flüssle $VERSION" --generate-notes
