@@ -2,6 +2,7 @@ package at.hochwasser.app
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -140,8 +141,21 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.legend).setOnClickListener { toggle(KEY_COLLAPSE_LEGEND) }
         findViewById<View>(R.id.sheet_handle).setOnClickListener { toggle(KEY_COLLAPSE_SHEET) }
         applyCollapsed()
+        requested = intent.getStringExtra(StationWidget.EXTRA_HZB)
         refresh()
     }
+
+    /** Vom Widget geöffnet: dessen Pegel auf der Karte zeigen. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val hzb = intent.getStringExtra(StationWidget.EXTRA_HZB) ?: return
+        nav.selectedItemId = R.id.nav_map
+        val s = stations.firstOrNull { it.reading.hzbNr == hzb }
+        if (s != null) select(s) else requested = hzb
+    }
+
+    /** Pegel, den das Widget beim Öffnen zeigen will. */
+    private var requested: String? = null
 
     override fun onResume() {
         super.onResume()
@@ -169,6 +183,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun show(stations: List<Station>) {
         this.stations = stations
+        // Die Widgets gleich mit den frischen Werten neu zeichnen
+        for (id in StationWidget.ids(this)) {
+            StationWidget.stationFor(this, id)?.let { hzb ->
+                stations.firstOrNull { it.reading.hzbNr == hzb }?.let { StationWidget.render(this, id, it) }
+            }
+        }
         sparkCache.clear()
         map.overlays.removeAll { it is Marker }
         val density = resources.displayMetrics.density
@@ -198,7 +218,9 @@ class MainActivity : AppCompatActivity() {
         updateStatusCard()
 
         // Ausgewählte Station behalten, sonst die kritischste zeigen
-        val keep = selected?.let { old -> stations.firstOrNull { it.reading.hzbNr == old.reading.hzbNr } }
+        val fromWidget = requested?.let { id -> stations.firstOrNull { it.reading.hzbNr == id } }
+        requested = null
+        val keep = fromWidget ?: selected?.let { old -> stations.firstOrNull { it.reading.hzbNr == old.reading.hzbNr } }
         val favorite = favorite()?.let { id -> stations.firstOrNull { it.reading.hzbNr == id } }
         (keep ?: favorite ?: stations.sortedWith(severity).firstOrNull())?.let { select(it, center = false) }
         if (!fitted) { fitted = true; map.post { fitVorarlberg() } }
