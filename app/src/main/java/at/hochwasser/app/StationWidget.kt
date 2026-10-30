@@ -40,8 +40,10 @@ class StationWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         // Android ruft onUpdate auch bei Paketänderungen auf, darum höchstens alle 5 Minuten neu laden
+        // Nach einem App-Update immer laden, sonst bliebe das neue Widget auf „Lade Pegeldaten …“ stehen
         val last = prefs(context).getLong(KEY_LAST, 0L)
-        if (System.currentTimeMillis() - last > 5 * 60_000L) refreshAll(context)
+        val updated = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime }.getOrDefault(0L)
+        if (System.currentTimeMillis() - last > 5 * 60_000L || updated > last) refreshAll(context)
     }
 
     /** Größe geändert: neu zeichnen, damit der Verlauf je nach Höhe erscheint oder verschwindet. */
