@@ -48,6 +48,8 @@ class StationWidget : AppWidgetProvider() {
 
     /** Größe geändert: neu zeichnen, damit der Verlauf je nach Höhe erscheint oder verschwindet. */
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
+        // Mit den zuletzt geladenen Daten sofort neu zeichnen, das Nachladen dauert sonst einige Sekunden
+        lastData[id]?.let { (station, history) -> render(context, id, station, null, history) }
         refreshAll(context)
     }
 
@@ -99,7 +101,11 @@ class StationWidget : AppWidgetProvider() {
             AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, StationWidget::class.java))
 
         /** Zeichnet ein Widget; ohne [station] bleibt nur der Hinweis [message] stehen. */
+        /** Zuletzt gezeichnete Daten pro Widget, solange die App im Speicher ist. */
+        private val lastData = mutableMapOf<Int, Pair<Station, List<TimeValue>>>()
+
         fun render(context: Context, id: Int, station: Station?, message: String? = null, history: List<TimeValue> = emptyList()) {
+            if (station != null) lastData[id] = station to history
             val views = RemoteViews(context.packageName, R.layout.widget_station)
             val scale = FontScale.get(context)
             views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_SP, 16f * scale)
