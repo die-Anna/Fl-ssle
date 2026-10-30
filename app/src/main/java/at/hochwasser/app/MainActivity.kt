@@ -189,12 +189,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun show(stations: List<Station>) {
         this.stations = stations
-        // Die Widgets gleich mit den frischen Werten neu zeichnen
-        for (id in StationWidget.ids(this)) {
-            StationWidget.stationFor(this, id)?.let { hzb ->
-                stations.firstOrNull { it.reading.hzbNr == hzb }?.let { StationWidget.render(this, id, it) }
-            }
-        }
+        // Die Widgets gleich mit frischen Werten und Verlauf neu laden
+        if (StationWidget.ids(this).isNotEmpty()) StationWidget.refreshAll(this)
         sparkCache.clear()
         map.overlays.removeAll { it is Marker }
         val density = resources.displayMetrics.density
@@ -339,15 +335,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun thresholds(s: Station): List<ChartView.Threshold> {
-        val list = mutableListOf<ChartView.Threshold>()
-        s.details?.meanDischargeM3s?.let { list += ChartView.Threshold("MQ", it, FlowColors.color(FlowClass.NORMAL)) }
-        s.details?.hq?.forEach { (k, v) ->
-            val cls = when (k) { 1 -> FlowClass.HQ1; 5 -> FlowClass.HQ5; 10 -> FlowClass.HQ10; 30 -> FlowClass.HQ30; 100 -> FlowClass.HQ100; else -> FlowClass.HQ300 }
-            list += ChartView.Threshold("HQ$k", v, FlowColors.color(cls))
-        }
-        return list
-    }
+    private fun thresholds(s: Station) = StationWidget.chartThresholds(s)
 
     // --- Reiter ---
 

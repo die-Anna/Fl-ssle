@@ -6,7 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.os.Bundle
+import android.view.View
 import android.util.TypedValue
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -18,7 +22,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import at.hochwasser.core.FlowClass
 import at.hochwasser.core.Station
+import at.hochwasser.core.TimeValue
 import at.hochwasser.core.VowisClient
+import java.time.Duration
+import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -34,6 +41,11 @@ class StationWidget : AppWidgetProvider() {
         // Android ruft onUpdate auch bei Paketänderungen auf, darum höchstens alle 5 Minuten neu laden
         val last = prefs(context).getLong(KEY_LAST, 0L)
         if (System.currentTimeMillis() - last > 5 * 60_000L) refreshAll(context)
+    }
+
+    /** Größe geändert: neu zeichnen, damit der Verlauf je nach Höhe erscheint oder verschwindet. */
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
+        refreshAll(context)
     }
 
     override fun onDisabled(context: Context) {
@@ -84,7 +96,7 @@ class StationWidget : AppWidgetProvider() {
             AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, StationWidget::class.java))
 
         /** Zeichnet ein Widget; ohne [station] bleibt nur der Hinweis [message] stehen. */
-        fun render(context: Context, id: Int, station: Station?, message: String? = null) {
+        fun render(context: Context, id: Int, station: Station?, message: String? = null, history: List<TimeValue> = emptyList()) {
             val views = RemoteViews(context.packageName, R.layout.widget_station)
             val scale = FontScale.get(context)
             views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_SP, 16f * scale)
@@ -120,8 +132,44 @@ class StationWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_value, level ?: discharge ?: "–")
                 views.setTextViewText(R.id.widget_class, classLabel(cls))
                 views.setTextColor(R.id.widget_class, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
+                chartBitmap(context, id, station, history)?.let {
+                    views.setImageViewBitmap(R.id.widget_chart, it)
+                    views.setViewVisibility(R.id.widget_chart, View.VISIBLE)
+                }
             }
             AppWidgetManager.getInstance(context).updateAppWidget(id, views)
+        }
+
+        /** Zeichnet den Verlauf mit der kompakten Diagrammansicht der App, passend zur Widget-Größe. */
+        private fun chartBitmap(context: Context, id: Int, station: Station, history: List<TimeValue>): Bitmap? {
+            if (history.size < 2) return null
+            val options = AppWidgetManager.getInstance(context).getAppWidgetOptions(id)
+            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
+            val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+            // Bei einer Zeile Höhe ist kein Platz für die Kurve
+            if (heightDp < 100) return null
+            val density = context.resources.displayMetrics.density
+            val w = ((widthDp - 24) * density).toInt().coerceAtLeast(100)
+            val h = ((heightDp - 24 - 36 - 8) * density).toInt().coerceIn((24 * density).toInt(), (120 * density).toInt())
+            val chart = ChartView(context)
+            chart.compact = true
+            chart.setData(history, chartThresholds(station), "dd.MM.")
+            chart.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            chart.layout(0, 0, w, h)
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            chart.draw(Canvas(bmp))
+            return bmp
+        }
+
+        /** Mittelwasser und HQ-Linien wie in der Stationskarte. */
+        fun chartThresholds(s: Station): List<ChartView.Threshold> {
+            val list = mutableListOf<ChartView.Threshold>()
+            s.details?.meanDischargeM3s?.let { list += ChartView.Threshold("MQ", it, FlowColors.color(FlowClass.NORMAL)) }
+            s.details?.hq?.forEach { (k, v) ->
+                val cls = when (k) { 1 -> FlowClass.HQ1; 5 -> FlowClass.HQ5; 10 -> FlowClass.HQ10; 30 -> FlowClass.HQ30; 100 -> FlowClass.HQ100; else -> FlowClass.HQ300 }
+                list += ChartView.Threshold("HQ$k", v, FlowColors.color(cls))
+            }
+            return list
         }
 
         private fun classLabel(c: FlowClass) = when (c) {
@@ -140,12 +188,18 @@ class WidgetWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val ids = StationWidget.ids(applicationContext)
         if (ids.isEmpty()) return Result.success()
-        val stations = runCatching { VowisClient(StationRepository.USER_AGENT).fetchStations() }
+        val client = VowisClient(StationRepository.USER_AGENT)
+        val stations = runCatching { client.fetchStations() }
             .getOrElse { return Result.retry() } // die alten Werte bleiben bis zum nächsten Versuch stehen
         ids.forEach { id ->
             val hzb = StationWidget.stationFor(applicationContext, id)
             val station = stations.firstOrNull { it.reading.hzbNr == hzb }
-            StationWidget.render(applicationContext, id, station, if (station == null) "Pegel nicht gefunden" else null)
+            // Verlauf der letzten 3 Tage; fehlt er (manche Pegel haben keinen), bleibt die Kurve weg
+            val history = station?.reading?.wisId?.let { wisId ->
+                val to = Instant.now()
+                runCatching { client.fetchDischargeHistory(wisId, to.minus(Duration.ofDays(3)), to) }.getOrDefault(emptyList())
+            } ?: emptyList()
+            StationWidget.render(applicationContext, id, station, if (station == null) "Pegel nicht gefunden" else null, history)
         }
         return Result.success()
     }
