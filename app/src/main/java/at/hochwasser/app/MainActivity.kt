@@ -145,6 +145,12 @@ class MainActivity : AppCompatActivity() {
         refresh()
     }
 
+    /** Nach einem Neustart (z. B. neue Schriftgröße) den gemerkten Reiter auch wirklich zeigen. */
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        showTab(nav.selectedItemId)
+    }
+
     /** Vom Widget geöffnet: dessen Pegel auf der Karte zeigen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

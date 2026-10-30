@@ -22,6 +22,7 @@ import at.hochwasser.core.VowisClient
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 /**
  * Widget für den Startbildschirm, das einen Pegel zeigt. Welcher, wird beim Hinzufügen gewählt
@@ -30,7 +31,13 @@ import java.util.Locale
 class StationWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        refreshAll(context)
+        // Android ruft onUpdate auch bei Paketänderungen auf, darum höchstens alle 5 Minuten neu laden
+        val last = prefs(context).getLong(KEY_LAST, 0L)
+        if (System.currentTimeMillis() - last > 5 * 60_000L) refreshAll(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(KEEPALIVE_NAME)
     }
 
     override fun onDeleted(context: Context, ids: IntArray) {
@@ -42,6 +49,8 @@ class StationWidget : AppWidgetProvider() {
     companion object {
         private const val PREFS = "widgets"
         private const val WORK_NAME = "widget-update"
+        private const val KEEPALIVE_NAME = "widget-keepalive"
+        private const val KEY_LAST = "last_refresh"
         const val EXTRA_HZB = "hzb"
         private val clockFormat = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Europe/Vienna"))
 
@@ -56,10 +65,19 @@ class StationWidget : AppWidgetProvider() {
 
         /** Holt die Daten im Hintergrund und zeichnet danach alle Widgets neu. */
         fun refreshAll(context: Context) {
+            prefs(context).edit().putLong(KEY_LAST, System.currentTimeMillis()).apply()
+            val wm = WorkManager.getInstance(context)
+            // Bekanntes WorkManager-Problem: ist keine Arbeit mehr geplant, schaltet WorkManager einen
+            // eigenen Empfänger ab, das gilt als Paketänderung und löst wieder onUpdate aus (Endlosschleife).
+            // Eine weit in der Zukunft geplante Arbeit hält den Empfänger aktiv.
+            wm.enqueueUniqueWork(
+                KEEPALIVE_NAME, ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<WidgetWorker>().setInitialDelay(3650, TimeUnit.DAYS).build(),
+            )
             val request = OneTimeWorkRequestBuilder<WidgetWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            wm.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
         }
 
         fun ids(context: Context): IntArray =

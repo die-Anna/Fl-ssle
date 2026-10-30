@@ -6,11 +6,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import at.hochwasser.core.Station
 import kotlinx.coroutines.launch
@@ -51,6 +53,22 @@ class WidgetConfigActivity : AppCompatActivity() {
 
     private fun show(stations: List<Station>) {
         box.removeViews(1, box.childCount - 1)
+        val search = EditText(this).apply {
+            hint = "Pegel oder Fluss suchen"
+            textSize = 17f
+            setSingleLine()
+        }
+        box.addView(search)
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(list)
+        fill(list, stations, "")
+        search.doAfterTextChanged { fill(list, stations, it?.toString().orEmpty()) }
+    }
+
+    private fun fill(box: LinearLayout, all: List<Station>, query: String) {
+        box.removeAllViews()
+        val q = query.trim().lowercase()
+        val stations = all.filter { q.isEmpty() || it.reading.name.lowercase().contains(q) || it.reading.river.lowercase().contains(q) }
         val favorite = getSharedPreferences("settings", MODE_PRIVATE).getString("favorite_hzb", null)
         val current = StationWidget.stationFor(this, widgetId) ?: favorite
         val sorted = stations.sortedWith(compareBy<Station> { it.reading.hzbNr != current }
