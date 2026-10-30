@@ -141,7 +141,8 @@ class ChartView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         val span = (yMax - minValue).takeIf { it > 0 } ?: 1.0
         val yMin = minValue - span * 0.15
         val yTop = yMax + span * 0.1
-        val pad = dp(3f)
+        // Etwas mehr als der Radius des Endpunkts, sonst wird er am Rand abgeschnitten
+        val pad = dp(5f)
         val left = pad
         val right = width - pad
         val top = pad
