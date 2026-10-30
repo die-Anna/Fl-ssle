@@ -51,6 +51,16 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
+        <!-- Kleine Kurve in der Zeile, wenn das Widget nur eine Zeile hoch ist -->
+        <ImageView
+            android:id="@+id/widget_chart_inline"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

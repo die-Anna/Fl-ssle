@@ -118,6 +118,7 @@ class StationWidget : AppWidgetProvider() {
 
             if (station == null) {
                 views.setViewVisibility(R.id.widget_chart, View.GONE)
+                views.setViewVisibility(R.id.widget_chart_inline, View.GONE)
                 views.setTextViewText(R.id.widget_detail, message ?: context.getString(R.string.loading))
             } else {
                 val r = station.reading
@@ -136,27 +137,37 @@ class StationWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_value, level ?: discharge ?: "–")
                 views.setTextViewText(R.id.widget_class, classLabel(cls))
                 views.setTextColor(R.id.widget_class, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
-                val chart = chartBitmap(context, id, station, history)
-                if (chart != null) views.setImageViewBitmap(R.id.widget_chart, chart)
+                // Ab 2 Zeilen groß unter der Zeile, bei 1 Zeile klein zwischen Name und Wert
+                val (widthDp, heightDp) = sizeDp(context, id)
+                val tall = heightDp >= 130
+                val big = if (tall) chartBitmap(context, station, history, widthDp - 24, (heightDp - 24 - 36 - 8).coerceIn(24, 120)) else null
+                // Platz in der Zeile: ohne Symbol, Abstände und Wert etwa ein Drittel davon
+                val inlineWidth = ((widthDp - 24 - 36 - 10 - 8 - 90) * 0.4).toInt()
+                val small = if (!tall && inlineWidth >= 40) chartBitmap(context, station, history, inlineWidth, 32) else null
+                if (big != null) views.setImageViewBitmap(R.id.widget_chart, big)
+                if (small != null) views.setImageViewBitmap(R.id.widget_chart_inline, small)
                 // Immer ausdrücklich setzen: der Launcher behält sonst die alte Kurve
-                views.setViewVisibility(R.id.widget_chart, if (chart != null) View.VISIBLE else View.GONE)
+                views.setViewVisibility(R.id.widget_chart, if (big != null) View.VISIBLE else View.GONE)
+                views.setViewVisibility(R.id.widget_chart_inline, if (small != null) View.VISIBLE else View.GONE)
             }
             AppWidgetManager.getInstance(context).updateAppWidget(id, views)
         }
 
-        /** Zeichnet den Verlauf mit der kompakten Diagrammansicht der App, passend zur Widget-Größe. */
-        private fun chartBitmap(context: Context, id: Int, station: Station, history: List<TimeValue>): Bitmap? {
-            if (history.size < 2) return null
+        /** Tatsächliche Widget-Größe in dp. Hochformat: schmalste Breite und größte Höhe, Querformat umgekehrt. */
+        private fun sizeDp(context: Context, id: Int): Pair<Int, Int> {
             val options = AppWidgetManager.getInstance(context).getAppWidgetOptions(id)
-            // Hochformat: schmalste Breite und größte Höhe, Querformat umgekehrt (so liefern es die Launcher)
             val portrait = context.resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
             val widthDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 250)
             val heightDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
-            // Bei einer Zeile Höhe (etwa 100 dp) ist kein Platz für die Kurve
-            if (heightDp < 130) return null
+            return widthDp to heightDp
+        }
+
+        /** Zeichnet den Verlauf mit der kompakten Diagrammansicht der App in der gewünschten Größe (dp). */
+        private fun chartBitmap(context: Context, station: Station, history: List<TimeValue>, widthDp: Int, heightDp: Int): Bitmap? {
+            if (history.size < 2) return null
             val density = context.resources.displayMetrics.density
-            val w = ((widthDp - 24) * density).toInt().coerceAtLeast(100)
-            val h = ((heightDp - 24 - 36 - 8) * density).toInt().coerceIn((24 * density).toInt(), (120 * density).toInt())
+            val w = (widthDp * density).toInt()
+            val h = (heightDp * density).toInt()
             val chart = ChartView(context)
             chart.compact = true
             chart.setData(hourly(history), chartThresholds(station), "dd.MM.")
