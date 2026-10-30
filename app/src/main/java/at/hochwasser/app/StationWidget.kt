@@ -30,6 +30,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -102,7 +103,7 @@ class StationWidget : AppWidgetProvider() {
 
         /** Zeichnet ein Widget; ohne [station] bleibt nur der Hinweis [message] stehen. */
         /** Zuletzt gezeichnete Daten pro Widget, solange die App im Speicher ist. */
-        private val lastData = mutableMapOf<Int, Pair<Station, List<TimeValue>>>()
+        private val lastData = ConcurrentHashMap<Int, Pair<Station, List<TimeValue>>>()
 
         fun render(context: Context, id: Int, station: Station?, message: String? = null, history: List<TimeValue> = emptyList()) {
             if (station != null) lastData[id] = station to history
