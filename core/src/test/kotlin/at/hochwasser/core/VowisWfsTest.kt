@@ -24,6 +24,8 @@ class VowisWfsTest {
         assertEquals(68, s.reading.waterLevelCm)
         assertEquals(FlowClass.BELOW_MEAN, s.reading.flowClass)
         assertEquals(-0.086, s.reading.trendQ)
+        assertEquals(-0.237, s.reading.trendW)
+        assertEquals(-1, s.reading.trend)
         assertEquals("2026-10-26T16:05:00Z", s.reading.measuredAt.toString())
         assertEquals(47.2267, s.details!!.lat)
         assertEquals(9.8759, s.details!!.lon)

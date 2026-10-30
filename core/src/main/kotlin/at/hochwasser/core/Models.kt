@@ -19,7 +19,20 @@ data class StationReading(
     val wisId: String? = null,
     /** Tendenz des Abflusses (positiv = steigend), sofern bekannt. */
     val trendQ: Double? = null,
-)
+    /** Tendenz des Wasserstands (positiv = steigend), sofern bekannt. */
+    val trendW: Double? = null,
+) {
+    /**
+     * Richtung wie auf der VOWIS-Karte: 1 steigend, -1 fallend, 0 gleichbleibend.
+     * Vorrangig aus dem Pegeltrend (Schwelle ±0,2), sonst aus dem Abflusstrend.
+     */
+    val trend: Int?
+        get() = when {
+            trendW != null -> if (trendW > 0.2) 1 else if (trendW < -0.2) -1 else 0
+            trendQ != null -> if (trendQ > 0.01) 1 else if (trendQ < -0.01) -1 else 0
+            else -> null
+        }
+}
 
 /** Daten, die sich selten ändern: Lage und Hochwasser-Kennwerte einer Station. */
 data class StationDetails(

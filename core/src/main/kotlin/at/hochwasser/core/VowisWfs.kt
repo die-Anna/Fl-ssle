@@ -53,6 +53,7 @@ object VowisWfs {
                 ?: FlowClass.fromDischarge(q, details),
             wisId = p.str("WISID"),
             trendQ = p.num("TRENDQ"),
+            trendW = p.num("TRENDW"),
         )
         return Station(reading, details)
     }

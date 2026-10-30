@@ -26,7 +26,7 @@ object FlowColors {
      * Kreis-Symbol für die Karte; Hochwasser-Stationen werden größer gezeichnet.
      * Mit [trend] kommt ein Pfeil in den Kreis: schräg hoch = steigend, waagrecht = gleich, schräg runter = fallend.
      */
-    fun markerBitmap(c: FlowClass, density: Float, trend: Double? = null): Bitmap {
+    fun markerBitmap(c: FlowClass, density: Float, trend: Int? = null): Bitmap {
         val dp = when {
             c.isFlood -> 30
             trend != null -> 24
@@ -45,9 +45,9 @@ object FlowColors {
         return bmp
     }
 
-    private fun angleFor(trend: Double) = when {
-        trend > 0.01 -> -45f
-        trend < -0.01 -> 45f
+    private fun angleFor(trend: Int) = when {
+        trend > 0 -> -45f
+        trend < 0 -> 45f
         else -> 0f
     }
 

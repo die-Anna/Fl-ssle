@@ -200,7 +200,7 @@ class MainActivity : AppCompatActivity() {
             val lon = s.details?.lon ?: continue
             val m = Marker(map)
             m.position = GeoPoint(lat, lon)
-            m.icon = FlowColors.markerBitmap(classOf(s), density * markerScale(), s.reading.trendQ).toDrawable(resources)
+            m.icon = FlowColors.markerBitmap(classOf(s), density * markerScale(), s.reading.trend).toDrawable(resources)
             m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             m.title = s.reading.name
             m.setOnMarkerClickListener { _, _ -> select(s); true }
@@ -299,8 +299,8 @@ class MainActivity : AppCompatActivity() {
             if (r.waterLevelCm != null && discharge != null) append(" · $discharge")
         }
         updateFavoriteStar()
-        findViewById<TextView>(R.id.sheet_trend).text = "Tendenz: ${trendText(r.trendQ)}"
-        showTrendIcon(r.trendQ)
+        findViewById<TextView>(R.id.sheet_trend).text = "Tendenz: ${trendText(r.trend)}"
+        showTrendIcon(r.trend)
 
         if (center) {
             val lat = s.details?.lat
@@ -760,21 +760,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun levelText(cm: Int?) = cm?.let { String.format(Locale.GERMAN, "%.2f m", it / 100.0) }
 
-    private fun trendText(trend: Double?): String = when {
+    private fun trendText(trend: Int?): String = when {
         trend == null -> "unbekannt"
-        trend > 0.01 -> "steigend"
-        trend < -0.01 -> "fallend"
+        trend > 0 -> "steigend"
+        trend < 0 -> "fallend"
         else -> "gleichbleibend"
     }
 
     /** Pfeil im Kreis: schräg nach oben (orange) bei steigend, schräg nach unten (blau) bei fallend. */
-    private fun showTrendIcon(trend: Double?) {
+    private fun showTrendIcon(trend: Int?) {
         val icon = findViewById<ImageView>(R.id.sheet_trend_icon)
         if (trend == null) { icon.visibility = View.GONE; return }
         icon.visibility = View.VISIBLE
         val (rotation, color) = when {
-            trend > 0.01 -> -45f to "#FB8C00"
-            trend < -0.01 -> 45f to "#1E88E5"
+            trend > 0 -> -45f to "#FB8C00"
+            trend < 0 -> 45f to "#1E88E5"
             else -> 0f to "#43A047"
         }
         icon.rotation = rotation

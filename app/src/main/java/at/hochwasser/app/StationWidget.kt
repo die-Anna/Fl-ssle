@@ -132,7 +132,7 @@ class StationWidget : AppWidgetProvider() {
                 val cls = r.flowClass.takeUnless { it == FlowClass.UNKNOWN }
                     ?: FlowClass.fromDischarge(r.dischargeM3s, station.details)
                 val density = context.resources.displayMetrics.density
-                views.setImageViewBitmap(R.id.widget_icon, FlowColors.markerBitmap(cls, density * 1.4f, r.trendQ))
+                views.setImageViewBitmap(R.id.widget_icon, FlowColors.markerBitmap(cls, density * 1.4f, r.trend))
                 views.setTextViewText(R.id.widget_name, r.name)
                 views.setTextViewText(R.id.widget_detail, buildString {
                     append(r.river)
