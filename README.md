@@ -31,9 +31,18 @@
 | 🗺️ **Karte** | Alle 45 Pegel des Landes auf einer OpenStreetMap-Karte, eingefärbt nach Abflussklasse von „niedrig“ bis HQ300. Der Pfeil im Punkt zeigt, ob der Fluss steigt oder fällt. Wahlweise im Kartenstil Standard oder Gelände. |
 | 📈 **Stationskarte** | Antippen zeigt Wasserstand, Abfluss, Klasse, Tendenz und den Verlauf der letzten 3 Tage. Ein weiterer Tipp öffnet das große Diagramm. |
 | ⭐ **Hauptpegel** | Mit dem Stern wird dein Fluss zum Hauptpegel und öffnet sich beim Start. |
+| 📱 **Widget** | Dein Lieblingspegel direkt am Startbildschirm, mit Wert, Klasse und Tendenz. Antippen öffnet die App bei diesem Pegel. |
 | 🔔 **Alarme** | Benachrichtigung, sobald ein Pegel oder ein ganzer Fluss eine Hochwasserstufe erreicht. Geprüft wird alle 15 Minuten im Hintergrund. |
 | 🔠 **Gut lesbar** | Die Schriftgröße lässt sich in der App bis „Riesig“ einstellen. |
 | 🔒 **Ohne Server** | Die App liest die öffentlichen Daten des Landes direkt. Kein Konto, keine Werbung, kein Tracking. |
+
+### Widget für den Startbildschirm
+
+Lange auf den Startbildschirm drücken, dann **Widgets → Flüssle** wählen und den Pegel aussuchen (mit Suche, der Hauptpegel steht oben).
+
+<p align="center">
+  <img src="docs/screenshots/widget.png" width="420" alt="Flüssle-Widget am Startbildschirm">
+</p>
 
 <p align="center">
   <img src="docs/screenshots/alarme.png" width="260" alt="Alarme">
