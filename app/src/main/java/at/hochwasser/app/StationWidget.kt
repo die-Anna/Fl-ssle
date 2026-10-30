@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -145,10 +146,12 @@ class StationWidget : AppWidgetProvider() {
         private fun chartBitmap(context: Context, id: Int, station: Station, history: List<TimeValue>): Bitmap? {
             if (history.size < 2) return null
             val options = AppWidgetManager.getInstance(context).getAppWidgetOptions(id)
-            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
-            val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
-            // Bei einer Zeile Höhe ist kein Platz für die Kurve
-            if (heightDp < 100) return null
+            // Hochformat: schmalste Breite und größte Höhe, Querformat umgekehrt (so liefern es die Launcher)
+            val portrait = context.resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
+            val widthDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 250)
+            val heightDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
+            // Bei einer Zeile Höhe (etwa 100 dp) ist kein Platz für die Kurve
+            if (heightDp < 130) return null
             val density = context.resources.displayMetrics.density
             val w = ((widthDp - 24) * density).toInt().coerceAtLeast(100)
             val h = ((heightDp - 24 - 36 - 8) * density).toInt().coerceIn((24 * density).toInt(), (120 * density).toInt())
