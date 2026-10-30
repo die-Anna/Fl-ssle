@@ -114,6 +114,7 @@ class StationWidget : AppWidgetProvider() {
             )
 
             if (station == null) {
+                views.setViewVisibility(R.id.widget_chart, View.GONE)
                 views.setTextViewText(R.id.widget_detail, message ?: context.getString(R.string.loading))
             } else {
                 val r = station.reading
@@ -132,10 +133,10 @@ class StationWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_value, level ?: discharge ?: "–")
                 views.setTextViewText(R.id.widget_class, classLabel(cls))
                 views.setTextColor(R.id.widget_class, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
-                chartBitmap(context, id, station, history)?.let {
-                    views.setImageViewBitmap(R.id.widget_chart, it)
-                    views.setViewVisibility(R.id.widget_chart, View.VISIBLE)
-                }
+                val chart = chartBitmap(context, id, station, history)
+                if (chart != null) views.setImageViewBitmap(R.id.widget_chart, chart)
+                // Immer ausdrücklich setzen: der Launcher behält sonst die alte Kurve
+                views.setViewVisibility(R.id.widget_chart, if (chart != null) View.VISIBLE else View.GONE)
             }
             AppWidgetManager.getInstance(context).updateAppWidget(id, views)
         }
@@ -153,12 +154,22 @@ class StationWidget : AppWidgetProvider() {
             val h = ((heightDp - 24 - 36 - 8) * density).toInt().coerceIn((24 * density).toInt(), (120 * density).toInt())
             val chart = ChartView(context)
             chart.compact = true
-            chart.setData(history, chartThresholds(station), "dd.MM.")
+            chart.setData(hourly(history), chartThresholds(station), "dd.MM.")
             chart.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
             chart.layout(0, 0, w, h)
             val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             chart.draw(Canvas(bmp))
             return bmp
+        }
+
+        /** Stundenmittel statt 5-Minuten-Werten, sonst wird die kleine Kurve zu einem zackigen Band. */
+        private fun hourly(values: List<TimeValue>): List<TimeValue> {
+            val buckets = values.groupBy { it.time.epochSecond / 3600 }
+            val smoothed = buckets.toSortedMap().map { (hour, list) ->
+                TimeValue(Instant.ofEpochSecond(hour * 3600 + 1800), list.sumOf { it.value } / list.size)
+            }
+            // Der letzte Punkt soll der aktuelle Wert sein
+            return smoothed.dropLast(1) + values.last()
         }
 
         /** Mittelwasser und HQ-Linien wie in der Stationskarte. */
