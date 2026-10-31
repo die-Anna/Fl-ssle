@@ -4,9 +4,10 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
+import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.util.TypedValue
 import org.json.JSONObject
 import org.osmdroid.util.BoundingBox
@@ -15,6 +16,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.hypot
 
 /**
@@ -89,8 +91,8 @@ class RiverLayer(
     private inner class LabelOverlay : Overlay() {
         private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = RIVER_BLUE_DARK
-            isFakeBoldText = true
-            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD_ITALIC)
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.04f
         }
         private val halo = Paint(fill).apply {
             color = Color.WHITE
@@ -174,26 +176,31 @@ class RiverLayer(
             val chord = hypot(x1 - x0, y1 - y0)
             val textH = fill.descent() - fill.ascent()
             val steep = abs(y1 - y0) > abs(x1 - x0) * 0.8f
-            // Zu kurvig für Text entlang der Linie
-            if (!steep && chord < textW * 0.85f) return false
+            // Nur auf annähernd geraden Stücken, sonst wird die Schrift krumm und zerrissen
+            if (!steep && chord < (textW + 8 * density) * 0.92f) return false
+            val mx = (x0 + x1) / 2; val my = (y0 + y1) / 2
 
+            // Schräger Text: Ecken des gedrehten Textfelds über der Linie
+            var angle = Math.toDegrees(atan2((y1 - y0).toDouble(), (x1 - x0).toDouble())).toFloat()
+            if (angle > 90) angle -= 180 else if (angle < -90) angle += 180
             val candidates = if (steep) {
                 // Waagrecht, rechts oder links direkt an der Linie
-                val mx = (x0 + x1) / 2; val my = (y0 + y1) / 2
                 listOf(
                     RectF(mx + lift, my - textH / 2, mx + lift + textW, my + textH / 2),
                     RectF(mx - lift - textW, my - textH / 2, mx - lift, my + textH / 2),
                 )
             } else {
-                val b = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
-                path.forEach { (x, y) -> b.union(x, y) }
-                b.top -= lift + textH
-                listOf(b)
+                val m = Matrix().apply { setRotate(angle); postTranslate(mx, my) }
+                val corners = floatArrayOf(-textW / 2, -lift - textH, textW / 2, -lift - textH, -textW / 2, -lift, textW / 2, -lift)
+                m.mapPoints(corners)
+                val r = RectF(corners[0], corners[1], corners[0], corners[1])
+                for (i in 1 until 4) r.union(corners[2 * i], corners[2 * i + 1])
+                listOf(r)
             }
             val bounds = candidates.firstOrNull { b ->
                 val padded = RectF(b).apply { inset(-3 * density, -3 * density) }
-                padded.left >= 0 && padded.top >= 64 * density && padded.right <= c.width && padded.bottom <= c.height &&
-                    taken.none { RectF.intersects(it, padded) }
+                padded.left >= 0 && padded.top >= SAFE_TOP * density && padded.right <= c.width - SAFE_RIGHT * density &&
+                    padded.bottom <= c.height - SAFE_BOTTOM * density && taken.none { RectF.intersects(it, padded) }
             } ?: return false
             taken += RectF(bounds).apply { inset(-3 * density, -3 * density) }
 
@@ -202,13 +209,12 @@ class RiverLayer(
                 c.drawText(name, bounds.left, baseline, halo)
                 c.drawText(name, bounds.left, baseline, fill)
             } else {
-                // Immer von links nach rechts lesbar
-                val ordered = if (x1 < x0) path.reversed() else path
-                val p = Path()
-                ordered.forEachIndexed { i, (x, y) -> if (i == 0) p.moveTo(x, y) else p.lineTo(x, y) }
-                val vOffset = -lift - fill.descent()
-                c.drawTextOnPath(name, p, 4 * density, vOffset, halo)
-                c.drawTextOnPath(name, p, 4 * density, vOffset, fill)
+                c.save()
+                c.translate(mx, my)
+                c.rotate(angle)
+                c.drawText(name, -textW / 2, -lift - fill.descent(), halo)
+                c.drawText(name, -textW / 2, -lift - fill.descent(), fill)
+                c.restore()
             }
             return true
         }
@@ -220,6 +226,10 @@ class RiverLayer(
     companion object {
         val RIVER_BLUE = Color.parseColor("#1E6FE0")
         val RIVER_BLUE_DARK = Color.parseColor("#0D47A1")
+        // Bereiche, die Kopfleiste, Knöpfe und Navigation verdecken (dp)
+        private const val SAFE_TOP = 136
+        private const val SAFE_RIGHT = 76
+        private const val SAFE_BOTTOM = 80
         /** Diese Namen stehen auch schon in der Übersicht über ganz Vorarlberg. */
         private val OVERVIEW = setOf("Rhein", "Ill", "Bregenzer Ach", "Lech", "Dornbirner Ache", "Frutz", "Alfenz", "Lutz", "Litz", "Subersach", "Breitach")
         val WIDTHS = listOf(0f to "Aus", 2f to "Dünn", 4f to "Mittel", 6f to "Dick", 9f to "Sehr dick")
