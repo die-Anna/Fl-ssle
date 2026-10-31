@@ -6,6 +6,7 @@ Die Linien werden vereinfacht, damit die Datei klein bleibt.
 """
 import json
 import math
+import os
 import re
 import sys
 import urllib.parse
@@ -133,6 +134,7 @@ out geom;"""
     found = {norm(r["name"]) for r in rivers}
     print("Pegel-Gewässer ohne Linie:", sorted(gauged - found), file=sys.stderr)
     print(len(rivers), "Gewässer,", sum(len(l) // 2 for r in rivers for l in r["lines"]), "Punkte", file=sys.stderr)
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"source": "© OpenStreetMap-Mitwirkende (ODbL)", "rivers": rivers}, f,
                   ensure_ascii=False, separators=(",", ":"))

@@ -119,6 +119,8 @@ class MainActivity : AppCompatActivity() {
         map.controller.setCenter(GeoPoint(47.22, 9.88))
         // Auf Vorarlberg zuschneiden, sobald die Kartengröße bekannt ist
         map.post { fitVorarlberg() }
+        rivers = RiverLayer(this, map)
+        rivers.apply(riverWidth())
 
         findViewById<ImageButton>(R.id.zoom_in).setOnClickListener { map.controller.zoomIn() }
         findViewById<ImageButton>(R.id.zoom_out).setOnClickListener { map.controller.zoomOut() }
@@ -159,6 +161,8 @@ class MainActivity : AppCompatActivity() {
         val s = stations.firstOrNull { it.reading.hzbNr == hzb }
         if (s != null) select(s) else requested = hzb
     }
+
+    private lateinit var rivers: RiverLayer
 
     /** Pegel, den das Widget beim Öffnen zeigen will. */
     private var requested: String? = null
@@ -448,6 +452,8 @@ class MainActivity : AppCompatActivity() {
         val favName = favorite()?.let { id -> stations.firstOrNull { it.reading.hzbNr == id }?.reading?.name ?: "Pegel $id" }
         box.addView(settingRow("Hauptpegel", favName ?: "keiner (Stern in der Stationskarte antippen)") { chooseFavorite() })
         box.addView(settingRow("Kartenstil", if (mapStyle() == STYLE_TOPO) "Gelände" else "Standard") { chooseMapStyle() })
+        val riverLabel = RiverLayer.WIDTHS.firstOrNull { it.first == riverWidth() }?.second ?: "Mittel"
+        box.addView(settingRow("Flüsse auf der Karte", riverLabel) { chooseRiverWidth() })
         box.addView(settingRow(getString(R.string.alarms), "${alarms.rules().size} eingerichtet") { nav.selectedItemId = R.id.nav_alarms })
         box.addView(settingRow("Daten aktualisieren", status.text.toString()) {
             refresh()
@@ -652,6 +658,23 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // --- Flussläufe ---
+
+    private fun riverWidth() = getSharedPreferences(PREFS, MODE_PRIVATE).getFloat(KEY_RIVER_WIDTH, 4f)
+
+    private fun chooseRiverWidth() {
+        val options = RiverLayer.WIDTHS
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Flüsse auf der Karte")
+            .setSingleChoiceItems(options.map { it.second }.toTypedArray(), options.indexOfFirst { it.first == riverWidth() }) { dialog, which ->
+                dialog.dismiss()
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putFloat(KEY_RIVER_WIDTH, options[which].first).apply()
+                rivers.apply(options[which].first)
+                buildSettings()
+            }
+            .show()
+    }
+
     // --- Alarme ---
 
     private fun chooseAlarmScope(s: Station) {
@@ -788,6 +811,7 @@ class MainActivity : AppCompatActivity() {
         private val VORARLBERG = BoundingBox(47.60, 10.24, 46.84, 9.53)
         private const val PREFS = "settings"
         private const val KEY_MAP_STYLE = "map_style"
+        private const val KEY_RIVER_WIDTH = "river_width"
         private const val KEY_FAVORITE = "favorite_hzb"
         private const val KEY_COLLAPSE_LEGEND = "collapse_legend"
         private const val KEY_COLLAPSE_SHEET = "collapse_sheet"
