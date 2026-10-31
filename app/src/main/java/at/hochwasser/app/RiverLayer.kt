@@ -103,7 +103,7 @@ class RiverLayer(
         override fun draw(c: Canvas, mapView: MapView, shadow: Boolean) {
             if (shadow || width <= 0f) return
             val zoom = mapView.zoomLevelDouble
-            if (zoom < 8.5) return
+            if (zoom < 7.5) return
             val view = mapView.boundingBox
             val proj = mapView.projection
             // Pegel-Marker liegen oben drauf und würden Namen sonst verdecken
@@ -114,7 +114,7 @@ class RiverLayer(
             val spacing = 320 * density
             // Größere Flüsse zuerst, damit ihre Namen Vorrang haben
             for (r in rivers.sortedByDescending { it.major }) {
-                if (!r.major && zoom < 11 || r.major && zoom < 9 && r.name != "Rhein" && r.name != "Ill") continue
+                if (!r.major && zoom < 11 || r.major && zoom < 10 && r.name !in OVERVIEW) continue
                 val sp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, if (r.major) 14f else 12f, context.resources.displayMetrics)
                 fill.textSize = sp
                 halo.textSize = sp
@@ -177,19 +177,25 @@ class RiverLayer(
             // Zu kurvig für Text entlang der Linie
             if (!steep && chord < textW * 0.85f) return false
 
-            val bounds: RectF
-            if (steep) {
+            val candidates = if (steep) {
+                // Waagrecht, rechts oder links direkt an der Linie
                 val mx = (x0 + x1) / 2; val my = (y0 + y1) / 2
-                bounds = RectF(mx + lift, my - textH / 2, mx + lift + textW, my + textH / 2)
+                listOf(
+                    RectF(mx + lift, my - textH / 2, mx + lift + textW, my + textH / 2),
+                    RectF(mx - lift - textW, my - textH / 2, mx - lift, my + textH / 2),
+                )
             } else {
-                bounds = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
-                path.forEach { (x, y) -> bounds.union(x, y) }
-                bounds.top -= lift + textH
+                val b = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
+                path.forEach { (x, y) -> b.union(x, y) }
+                b.top -= lift + textH
+                listOf(b)
             }
-            val padded = RectF(bounds).apply { inset(-3 * density, -3 * density) }
-            if (padded.left < 0 || padded.top < 64 * density || padded.right > c.width || padded.bottom > c.height) return false
-            if (taken.any { RectF.intersects(it, padded) }) return false
-            taken += padded
+            val bounds = candidates.firstOrNull { b ->
+                val padded = RectF(b).apply { inset(-3 * density, -3 * density) }
+                padded.left >= 0 && padded.top >= 64 * density && padded.right <= c.width && padded.bottom <= c.height &&
+                    taken.none { RectF.intersects(it, padded) }
+            } ?: return false
+            taken += RectF(bounds).apply { inset(-3 * density, -3 * density) }
 
             if (steep) {
                 val baseline = bounds.bottom - fill.descent()
@@ -214,6 +220,8 @@ class RiverLayer(
     companion object {
         val RIVER_BLUE = Color.parseColor("#1E6FE0")
         val RIVER_BLUE_DARK = Color.parseColor("#0D47A1")
+        /** Diese Namen stehen auch schon in der Übersicht über ganz Vorarlberg. */
+        private val OVERVIEW = setOf("Rhein", "Ill", "Bregenzer Ach", "Lech", "Dornbirner Ache", "Frutz", "Alfenz", "Lutz", "Litz", "Subersach", "Breitach")
         val WIDTHS = listOf(0f to "Aus", 2f to "Dünn", 4f to "Mittel", 6f to "Dick", 9f to "Sehr dick")
     }
 }
