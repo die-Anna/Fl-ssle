@@ -2,6 +2,8 @@ name: Flussdaten aktualisieren
 
 on:
   workflow_dispatch:
+  push:
+    paths: [tools/fluesse.py, .github/workflows/fluesse.yml]
 
 permissions:
   contents: write
