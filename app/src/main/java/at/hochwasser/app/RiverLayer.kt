@@ -14,6 +14,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
+import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
@@ -102,7 +103,7 @@ class RiverLayer(
         override fun draw(c: Canvas, mapView: MapView, shadow: Boolean) {
             if (shadow || width <= 0f) return
             val zoom = mapView.zoomLevelDouble
-            if (zoom < 9.5) return
+            if (zoom < 8.5) return
             val view = mapView.boundingBox
             val proj = mapView.projection
             // Pegel-Marker liegen oben drauf und würden Namen sonst verdecken
@@ -113,13 +114,13 @@ class RiverLayer(
             val spacing = 320 * density
             // Größere Flüsse zuerst, damit ihre Namen Vorrang haben
             for (r in rivers.sortedByDescending { it.major }) {
-                if (!r.major && zoom < 11) continue
+                if (!r.major && zoom < 11 || r.major && zoom < 9 && r.name != "Rhein" && r.name != "Ill") continue
                 val sp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, if (r.major) 14f else 12f, context.resources.displayMetrics)
                 fill.textSize = sp
                 halo.textSize = sp
                 val textW = fill.measureText(r.name)
                 // Name neben die Linie setzen, nicht darauf
-                val lift = width * (if (r.major) 1f else 0.65f) * density / 2 + 3 * density
+                val lift = (width * (if (r.major) 1f else 0.65f) + 3) * density / 2 + 3 * density
                 for ((i, pts) in r.lines.withIndex()) {
                     if (!intersects(r.boxes[i], view)) continue
                     val xs = FloatArray(pts.size)
@@ -133,8 +134,8 @@ class RiverLayer(
                     for (k in 1 until pts.size) {
                         val seg = hypot(xs[k] - xs[k - 1], ys[k] - ys[k - 1])
                         while (walked + seg >= next) {
-                            placeLabel(c, r.name, textW, xs, ys, k - 1, next - walked, lift, taken)
-                            next += spacing
+                            // Kein Platz: ein Stück weiter versuchen statt ganz auszulassen
+                            next += if (placeLabel(c, r.name, textW, xs, ys, k - 1, next - walked, lift, taken)) spacing else 40 * density
                         }
                         walked += seg
                     }
@@ -142,13 +143,16 @@ class RiverLayer(
             }
         }
 
-        /** Schneidet ab der Stelle ein Stück Linie in Textlänge aus und schreibt den Namen darauf. */
-        private fun placeLabel(c: Canvas, name: String, textW: Float, xs: FloatArray, ys: FloatArray, start: Int, offset: Float, lift: Float, taken: MutableList<RectF>) {
+        /**
+         * Schneidet ab der Stelle ein Stück Linie in Textlänge aus und schreibt den Namen daneben.
+         * Bei steilen Abschnitten steht der Name waagrecht neben der Linie, sonst liest man ihn schlecht.
+         */
+        private fun placeLabel(c: Canvas, name: String, textW: Float, xs: FloatArray, ys: FloatArray, start: Int, offset: Float, lift: Float, taken: MutableList<RectF>): Boolean {
             val path = mutableListOf<Pair<Float, Float>>()
             var k = start
             var dx = xs[k + 1] - xs[k]; var dy = ys[k + 1] - ys[k]
             var len = hypot(dx, dy)
-            var t = if (len > 0) offset / len else 0f
+            val t = if (len > 0) offset / len else 0f
             path += (xs[k] + dx * t) to (ys[k] + dy * t)
             var need = textW + 8 * density
             var rest = len * (1 - t)
@@ -161,28 +165,46 @@ class RiverLayer(
                 need -= rest
                 k++
                 path += xs[k] to ys[k]
-                if (k + 1 >= xs.size) return
+                if (k + 1 >= xs.size) return false
                 dx = xs[k + 1] - xs[k]; dy = ys[k + 1] - ys[k]
                 len = hypot(dx, dy)
                 rest = len
-                if (len == 0f) continue
             }
-            // Zu kurvig für lesbaren Text: Luftlinie viel kürzer als der Weg
             val (x0, y0) = path.first(); val (x1, y1) = path.last()
-            if (hypot(x1 - x0, y1 - y0) < textW * 0.85f) return
-            val bounds = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
-            path.forEach { (x, y) -> bounds.union(x, y) }
-            bounds.inset(-(fill.textSize + lift), -(fill.textSize + lift))
-            if (bounds.right < 0 || bounds.bottom < 0 || bounds.left > c.width || bounds.top > c.height) return
-            if (taken.any { RectF.intersects(it, bounds) }) return
-            taken += bounds
-            // Immer von links nach rechts lesbar
-            val ordered = if (x1 < x0) path.reversed() else path
-            val p = Path()
-            ordered.forEachIndexed { i, (x, y) -> if (i == 0) p.moveTo(x, y) else p.lineTo(x, y) }
-            val vOffset = -lift - fill.descent()
-            c.drawTextOnPath(name, p, 4 * density, vOffset, halo)
-            c.drawTextOnPath(name, p, 4 * density, vOffset, fill)
+            val chord = hypot(x1 - x0, y1 - y0)
+            val textH = fill.descent() - fill.ascent()
+            val steep = abs(y1 - y0) > abs(x1 - x0) * 0.8f
+            // Zu kurvig für Text entlang der Linie
+            if (!steep && chord < textW * 0.85f) return false
+
+            val bounds: RectF
+            if (steep) {
+                val mx = (x0 + x1) / 2; val my = (y0 + y1) / 2
+                bounds = RectF(mx + lift, my - textH / 2, mx + lift + textW, my + textH / 2)
+            } else {
+                bounds = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
+                path.forEach { (x, y) -> bounds.union(x, y) }
+                bounds.top -= lift + textH
+            }
+            val padded = RectF(bounds).apply { inset(-3 * density, -3 * density) }
+            if (padded.left < 0 || padded.top < 64 * density || padded.right > c.width || padded.bottom > c.height) return false
+            if (taken.any { RectF.intersects(it, padded) }) return false
+            taken += padded
+
+            if (steep) {
+                val baseline = bounds.bottom - fill.descent()
+                c.drawText(name, bounds.left, baseline, halo)
+                c.drawText(name, bounds.left, baseline, fill)
+            } else {
+                // Immer von links nach rechts lesbar
+                val ordered = if (x1 < x0) path.reversed() else path
+                val p = Path()
+                ordered.forEachIndexed { i, (x, y) -> if (i == 0) p.moveTo(x, y) else p.lineTo(x, y) }
+                val vOffset = -lift - fill.descent()
+                c.drawTextOnPath(name, p, 4 * density, vOffset, halo)
+                c.drawTextOnPath(name, p, 4 * density, vOffset, fill)
+            }
+            return true
         }
 
         private fun intersects(a: BoundingBox, b: BoundingBox) =
