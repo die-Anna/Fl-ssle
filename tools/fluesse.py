@@ -2,6 +2,7 @@
 
 Quelle: OpenStreetMap über die Overpass-API (© OpenStreetMap-Mitwirkende, ODbL).
 Genommen werden alle Flüsse und Kanäle sowie Bäche, an denen ein vowis-Pegel liegt.
+Stollen, Druckleitungen und verrohrte Abschnitte bleiben weg, die sieht man ja nicht.
 Die Linien werden vereinfacht, damit die Datei klein bleibt.
 """
 import json
@@ -31,13 +32,33 @@ def norm(name):
     return re.sub(r"[^a-zäöü]", "", name)
 
 
-def gauge_rivers():
-    names = set()
+def gauges():
+    """Lage der vowis-Pegel als (lat, lon)."""
+    result = []
     for f in get(WFS)["features"]:
-        river = (f.get("properties") or {}).get("GEWAESSER")
-        if river:
-            names.add(norm(river))
-    return names
+        c = (f.get("geometry") or {}).get("coordinates")
+        if c:
+            result.append((c[1], c[0]))
+    return result
+
+
+def near_gauge(pts, gauges, metres=250):
+    for lat, lon in pts:
+        for glat, glon in gauges:
+            if abs(lat - glat) * 110540 < metres and abs(lon - glon) * 75500 < metres:
+                return True
+    return False
+
+
+HIDDEN_USAGE = {"headrace", "tailrace", "penstock", "spillway"}
+
+
+def visible(tags):
+    if tags.get("tunnel") or tags.get("location") in ("underground", "underwater"):
+        return False
+    if tags.get("usage") in HIDDEN_USAGE:
+        return False
+    return not re.search(r"stollen|leitung|überleitung|zuleitung", tags.get("name", ""), re.I)
 
 
 def simplify(pts, tol):
@@ -100,7 +121,8 @@ def merge(lines):
 
 
 def main(out):
-    gauged = gauge_rivers()
+    pegel = gauges()
+    print(len(pegel), "Pegel", file=sys.stderr)
     s, w, n, e = BBOX
     query = f"""[out:json][timeout:240];
 (
@@ -114,14 +136,17 @@ out geom;"""
     for el in data["elements"]:
         tags = el.get("tags", {})
         name = tags.get("name")
-        if not name or "geometry" not in el:
-            continue
-        kind = tags["waterway"]
-        if kind == "stream" and norm(name) not in gauged:
+        if not name or "geometry" not in el or not visible(tags):
             continue
         pts = [(round(g["lat"], 5), round(g["lon"], 5)) for g in el["geometry"]]
         by_name.setdefault(name, []).append(pts)
-        kinds[name] = "river" if kind != "stream" or kinds.get(name) == "river" else "stream"
+        kind = tags["waterway"]
+        if kinds.get(name) != "river":
+            kinds[name] = kind
+    # Bäche nur, wenn irgendwo an ihnen ein Pegel steht
+    for name in [n for n, k in kinds.items() if k == "stream"]:
+        if not any(near_gauge(l, pegel) for l in by_name[name]):
+            del by_name[name], kinds[name]
 
     rivers = []
     for name, lines in sorted(by_name.items()):
@@ -129,10 +154,10 @@ out geom;"""
         rivers.append({
             "name": name,
             "major": kinds[name] == "river",
+            "kind": kinds[name],
             "lines": [[c for p in l for c in p] for l in merged],
         })
-    found = {norm(r["name"]) for r in rivers}
-    print("Pegel-Gewässer ohne Linie:", sorted(gauged - found), file=sys.stderr)
+    print("Bäche mit Pegel:", [r["name"] for r in rivers if r["kind"] == "stream"], file=sys.stderr)
     print(len(rivers), "Gewässer,", sum(len(l) // 2 for r in rivers for l in r["lines"]), "Punkte", file=sys.stderr)
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
