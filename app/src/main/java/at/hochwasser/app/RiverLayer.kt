@@ -20,7 +20,12 @@ import kotlin.math.hypot
  * Flussläufe aus OpenStreetMap (assets/fluesse.json), kräftig blau über die Karte gezeichnet,
  * damit man die Flüsse neben den Pegeln gut sieht. Die Namen stehen entlang der Linie.
  */
-class RiverLayer(private val context: Context, private val map: MapView) {
+class RiverLayer(
+    private val context: Context,
+    private val map: MapView,
+    /** Lage der Pegel-Marker samt Radius in px: dort keine Namen hinschreiben. */
+    private val markers: () -> List<Pair<GeoPoint, Float>>,
+) {
 
     class River(val name: String, val major: Boolean, val lines: List<List<GeoPoint>>, val boxes: List<BoundingBox>)
 
@@ -100,7 +105,11 @@ class RiverLayer(private val context: Context, private val map: MapView) {
             if (zoom < 9.5) return
             val view = mapView.boundingBox
             val proj = mapView.projection
-            val taken = mutableListOf<RectF>()
+            // Pegel-Marker liegen oben drauf und würden Namen sonst verdecken
+            val taken = markers().mapNotNullTo(mutableListOf()) { (g, radius) ->
+                proj.toPixels(g, point)
+                RectF(point.x - radius, point.y - radius, point.x + radius, point.y + radius)
+            }
             val spacing = 320 * density
             // Größere Flüsse zuerst, damit ihre Namen Vorrang haben
             for (r in rivers.sortedByDescending { it.major }) {
@@ -109,6 +118,8 @@ class RiverLayer(private val context: Context, private val map: MapView) {
                 fill.textSize = sp
                 halo.textSize = sp
                 val textW = fill.measureText(r.name)
+                // Name neben die Linie setzen, nicht darauf
+                val lift = width * (if (r.major) 1f else 0.65f) * density / 2 + 3 * density
                 for ((i, pts) in r.lines.withIndex()) {
                     if (!intersects(r.boxes[i], view)) continue
                     val xs = FloatArray(pts.size)
@@ -122,7 +133,7 @@ class RiverLayer(private val context: Context, private val map: MapView) {
                     for (k in 1 until pts.size) {
                         val seg = hypot(xs[k] - xs[k - 1], ys[k] - ys[k - 1])
                         while (walked + seg >= next) {
-                            placeLabel(c, r.name, textW, xs, ys, k - 1, next - walked, taken)
+                            placeLabel(c, r.name, textW, xs, ys, k - 1, next - walked, lift, taken)
                             next += spacing
                         }
                         walked += seg
@@ -132,7 +143,7 @@ class RiverLayer(private val context: Context, private val map: MapView) {
         }
 
         /** Schneidet ab der Stelle ein Stück Linie in Textlänge aus und schreibt den Namen darauf. */
-        private fun placeLabel(c: Canvas, name: String, textW: Float, xs: FloatArray, ys: FloatArray, start: Int, offset: Float, taken: MutableList<RectF>) {
+        private fun placeLabel(c: Canvas, name: String, textW: Float, xs: FloatArray, ys: FloatArray, start: Int, offset: Float, lift: Float, taken: MutableList<RectF>) {
             val path = mutableListOf<Pair<Float, Float>>()
             var k = start
             var dx = xs[k + 1] - xs[k]; var dy = ys[k + 1] - ys[k]
@@ -161,7 +172,7 @@ class RiverLayer(private val context: Context, private val map: MapView) {
             if (hypot(x1 - x0, y1 - y0) < textW * 0.85f) return
             val bounds = RectF(minOf(x0, x1), minOf(y0, y1), maxOf(x0, x1), maxOf(y0, y1))
             path.forEach { (x, y) -> bounds.union(x, y) }
-            bounds.inset(-fill.textSize, -fill.textSize)
+            bounds.inset(-(fill.textSize + lift), -(fill.textSize + lift))
             if (bounds.right < 0 || bounds.bottom < 0 || bounds.left > c.width || bounds.top > c.height) return
             if (taken.any { RectF.intersects(it, bounds) }) return
             taken += bounds
@@ -169,7 +180,7 @@ class RiverLayer(private val context: Context, private val map: MapView) {
             val ordered = if (x1 < x0) path.reversed() else path
             val p = Path()
             ordered.forEachIndexed { i, (x, y) -> if (i == 0) p.moveTo(x, y) else p.lineTo(x, y) }
-            val vOffset = fill.textSize * 0.35f
+            val vOffset = -lift - fill.descent()
             c.drawTextOnPath(name, p, 4 * density, vOffset, halo)
             c.drawTextOnPath(name, p, 4 * density, vOffset, fill)
         }

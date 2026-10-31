@@ -119,7 +119,10 @@ class MainActivity : AppCompatActivity() {
         map.controller.setCenter(GeoPoint(47.22, 9.88))
         // Auf Vorarlberg zuschneiden, sobald die Kartengröße bekannt ist
         map.post { fitVorarlberg() }
-        rivers = RiverLayer(this, map)
+        rivers = RiverLayer(this, map) {
+            val radius = 12 * resources.displayMetrics.density * markerScale()
+            stations.mapNotNull { s -> s.details?.let { d -> if (d.lat != null && d.lon != null) GeoPoint(d.lat!!, d.lon!!) to radius else null } }
+        }
         rivers.apply(riverWidth())
 
         findViewById<ImageButton>(R.id.zoom_in).setOnClickListener { map.controller.zoomIn() }
