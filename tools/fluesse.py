@@ -42,7 +42,7 @@ def gauges():
     return result
 
 
-def near_gauge(pts, gauges, metres=250):
+def near_gauge(pts, gauges, metres=150):
     for lat, lon in pts:
         for glat, glon in gauges:
             if abs(lat - glat) * 110540 < metres and abs(lon - glon) * 75500 < metres:
@@ -131,31 +131,28 @@ def main(out):
 );
 out geom;"""
     data = get(OVERPASS, urllib.parse.urlencode({"data": query}).encode())
-    by_name = {}
-    kinds = {}
+    groups = {}
     for el in data["elements"]:
         tags = el.get("tags", {})
         name = tags.get("name")
         if not name or "geometry" not in el or not visible(tags):
             continue
         pts = [(round(g["lat"], 5), round(g["lon"], 5)) for g in el["geometry"]]
-        by_name.setdefault(name, []).append(pts)
-        kind = tags["waterway"]
-        if kinds.get(name) != "river":
-            kinds[name] = kind
-    # Bäche nur, wenn irgendwo an ihnen ein Pegel steht
-    for name in [n for n, k in kinds.items() if k == "stream"]:
-        if not any(near_gauge(l, pegel) for l in by_name[name]):
-            del by_name[name], kinds[name]
+        groups.setdefault((name, tags["waterway"]), []).append(pts)
 
     rivers = []
-    for name, lines in sorted(by_name.items()):
-        merged = [simplify(l, TOLERANCE_M) for l in merge(lines)]
+    for (name, kind), lines in sorted(groups.items()):
+        merged = merge(lines)
+        # Bäche nur dort, wo ein Pegel an ihnen steht (gleiche Namen gibt es oft mehrfach)
+        if kind == "stream":
+            merged = [l for l in merged if near_gauge(l, pegel)]
+        if not merged:
+            continue
         rivers.append({
             "name": name,
-            "major": kinds[name] == "river",
-            "kind": kinds[name],
-            "lines": [[c for p in l for c in p] for l in merged],
+            "major": kind == "river",
+            "kind": kind,
+            "lines": [[c for p in simplify(l, TOLERANCE_M) for c in p] for l in merged],
         })
     print("Bäche mit Pegel:", [r["name"] for r in rivers if r["kind"] == "stream"], file=sys.stderr)
     print(len(rivers), "Gewässer,", sum(len(l) // 2 for r in rivers for l in r["lines"]), "Punkte", file=sys.stderr)
