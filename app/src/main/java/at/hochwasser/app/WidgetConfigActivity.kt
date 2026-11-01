@@ -83,8 +83,8 @@ class WidgetConfigActivity : AppCompatActivity() {
                 isClickable = true
                 setBackgroundResource(android.R.drawable.list_selector_background)
                 setOnClickListener { choose(r.hzbNr) }
-                addView(text(star + r.name, 18f, bold = true))
-                addView(text(r.river, 15f, muted = true))
+                addView(text(star + r.river, 18f, bold = true))
+                addView(text(r.name, 15f, muted = true))
             }
             box.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }

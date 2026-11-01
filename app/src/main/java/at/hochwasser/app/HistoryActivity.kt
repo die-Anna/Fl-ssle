@@ -118,7 +118,7 @@ class HistoryActivity : AppCompatActivity() {
         fun intent(context: Context, s: Station): Intent {
             val hq = s.details?.hq?.toSortedMap() ?: sortedMapOf()
             return Intent(context, HistoryActivity::class.java)
-                .putExtra(EXTRA_NAME, "${s.reading.name} (${s.reading.river})")
+                .putExtra(EXTRA_NAME, "${s.reading.river} (${s.reading.name})")
                 .putExtra(EXTRA_WISID, s.reading.wisId)
                 .putExtra(EXTRA_MQ, s.details?.meanDischargeM3s ?: Double.NaN)
                 .putExtra(EXTRA_HQ_KEYS, hq.keys.toIntArray())
