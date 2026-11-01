@@ -252,13 +252,38 @@ class MainActivity : AppCompatActivity() {
      * Zeigt ganz Vorarlberg im freien Teil der Karte: Kopf und Statuskarte oben,
      * Legende und Stationskarte unten verdecken einen Teil, darum den Ausschnitt entsprechend erweitern.
      */
+    /** Oberkante des freien Kartenbereichs in px: unter Kopfleiste bzw. Statuskarte. */
+    private fun visibleTop(): Double {
+        val card = findViewById<View>(R.id.status_card)
+        return if (card.visibility == View.VISIBLE) card.bottom.toDouble() else resources.getDimension(R.dimen.status_card_top).toDouble()
+    }
+
+    /** Unterkante des freien Kartenbereichs in px: über Legende, Stationskarte und Navigation. */
+    private fun visibleBottom(): Double {
+        val column = findViewById<View>(R.id.bottom_column)
+        return (column.top + findViewById<View>(R.id.legend).top).toDouble()
+    }
+
+    /** Pegel in die Mitte des sichtbaren Kartenbereichs schieben, nicht in die Mitte der ganzen Karte. */
+    private fun centerOn(p: GeoPoint) {
+        // Erst nach dem Layout messen: die Stationskarte kann sich gerade erst geöffnet oder in der Höhe geändert haben
+        map.post {
+            val h = map.height.toDouble()
+            if (h <= 0) { map.controller.animateTo(p); return@post }
+            val top = visibleTop()
+            val bottom = visibleBottom().takeIf { it > top + 48 * resources.displayMetrics.density } ?: h
+            val offset = (h / 2 - (top + bottom) / 2).toInt()
+            val proj = map.projection
+            val px = proj.toPixels(p, null)
+            map.controller.animateTo(proj.fromPixels(px.x, px.y + offset) as GeoPoint)
+        }
+    }
+
     private fun fitVorarlberg() {
         val h = map.height.toDouble()
         if (h <= 0) return
-        val card = findViewById<View>(R.id.status_card)
-        val top = if (card.visibility == View.VISIBLE) card.bottom.toDouble() else resources.getDimension(R.dimen.status_card_top).toDouble()
-        val column = findViewById<View>(R.id.bottom_column)
-        val bottom = h - (column.top + findViewById<View>(R.id.legend).top)
+        val top = visibleTop()
+        val bottom = h - visibleBottom()
         val free = (1 - (top + bottom) / h).coerceAtLeast(0.25)
         // Sobald Daten da sind, auf die Pegel selbst zuschneiden, sonst auf die Landesgrenzen
         val lats = stations.mapNotNull { it.details?.lat }
@@ -321,7 +346,7 @@ class MainActivity : AppCompatActivity() {
         if (center) {
             val lat = s.details?.lat
             val lon = s.details?.lon
-            if (lat != null && lon != null) map.controller.animateTo(GeoPoint(lat, lon))
+            if (lat != null && lon != null) centerOn(GeoPoint(lat, lon))
         }
         loadSparkline(s)
     }
