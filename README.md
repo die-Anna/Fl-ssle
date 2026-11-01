@@ -34,6 +34,7 @@
 | 📱 **Widget** | Dein Lieblingspegel direkt am Startbildschirm, mit Wert, Klasse, Tendenz und ab 2 Zeilen Höhe dem Verlauf der letzten 3 Tage. Antippen öffnet die App bei diesem Pegel. |
 | 🔔 **Alarme** | Benachrichtigung, sobald ein Pegel oder ein ganzer Fluss eine Hochwasserstufe erreicht. Geprüft wird alle 15 Minuten im Hintergrund. |
 | 🔠 **Gut lesbar** | Die Schriftgröße lässt sich in der App bis „Riesig“ einstellen. |
+| 👆 **Leicht zu treffen** | Pegel-Punkte lassen sich größer stellen, ein Tipp in die Nähe genügt, und liegen mehrere Pegel unter dem Finger, fragt die App nach. |
 | 🔒 **Ohne Server** | Die App liest die öffentlichen Daten des Landes direkt. Kein Konto, keine Werbung, kein Tracking. |
 
 ### Widget für den Startbildschirm
