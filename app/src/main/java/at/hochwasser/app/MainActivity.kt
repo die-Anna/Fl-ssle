@@ -14,8 +14,10 @@ import android.text.InputType
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -32,6 +34,7 @@ import androidx.lifecycle.lifecycleScope
 import at.hochwasser.core.AlarmRule
 import at.hochwasser.core.FlowClass
 import at.hochwasser.core.Station
+import at.hochwasser.core.TapPicker
 import at.hochwasser.core.TimeValue
 import at.hochwasser.core.VowisClient
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -48,6 +51,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.time.Duration
@@ -55,6 +59,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.hypot
 
 class MainActivity : AppCompatActivity() {
     private lateinit var map: MapView
@@ -120,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         // Auf Vorarlberg zuschneiden, sobald die Kartengröße bekannt ist
         map.post { fitVorarlberg() }
         rivers = RiverLayer(this, map) {
-            val radius = 12 * resources.displayMetrics.density * markerScale()
+            val radius = 12 * resources.displayMetrics.density * mapMarkerScale()
             stations.mapNotNull { s -> s.details?.let { d -> if (d.lat != null && d.lon != null) GeoPoint(d.lat!!, d.lon!!) to radius else null } }
         }
         rivers.apply(riverWidth())
@@ -207,12 +212,16 @@ class MainActivity : AppCompatActivity() {
             val lon = s.details?.lon ?: continue
             val m = Marker(map)
             m.position = GeoPoint(lat, lon)
-            m.icon = FlowColors.markerBitmap(classOf(s), density * markerScale(), s.reading.trend).toDrawable(resources)
+            m.icon = FlowColors.markerBitmap(classOf(s), density * mapMarkerScale(), s.reading.trend).toDrawable(resources)
             m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             m.title = s.reading.name
-            m.setOnMarkerClickListener { _, _ -> select(s); true }
+            // Antippen erledigt StationTapOverlay mit größerer Trefferfläche
+            m.setOnMarkerClickListener { _, _ -> false }
             map.overlays.add(m)
         }
+        // Tipp-Fläche über allen Markern halten
+        map.overlays.removeAll { it is StationTapOverlay }
+        map.overlays.add(StationTapOverlay())
         map.invalidate()
 
         val latest = stations.mapNotNull { it.reading.measuredAt }.maxOrNull()
@@ -457,6 +466,8 @@ class MainActivity : AppCompatActivity() {
         box.addView(settingRow("Kartenstil", if (mapStyle() == STYLE_TOPO) "Gelände" else "Standard") { chooseMapStyle() })
         val riverLabel = RiverLayer.WIDTHS.firstOrNull { it.first == riverWidth() }?.second ?: "Mittel"
         box.addView(settingRow("Flüsse auf der Karte", riverLabel) { chooseRiverWidth() })
+        val pointLabel = POINT_SIZES.firstOrNull { it.first == pointSize() }?.second ?: "Normal"
+        box.addView(settingRow("Pegel-Punkte auf der Karte", pointLabel) { choosePointSize() })
         box.addView(settingRow(getString(R.string.alarms), "${alarms.rules().size} eingerichtet") { nav.selectedItemId = R.id.nav_alarms })
         box.addView(settingRow("Daten aktualisieren", status.text.toString()) {
             refresh()
@@ -678,6 +689,89 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // --- Pegel-Punkte: Größe und Antippen ---
+
+    private fun pointSize() = getSharedPreferences(PREFS, MODE_PRIVATE).getFloat(KEY_POINT_SIZE, 1f)
+
+    private fun choosePointSize() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Pegel-Punkte auf der Karte")
+            .setSingleChoiceItems(POINT_SIZES.map { it.second }.toTypedArray(), POINT_SIZES.indexOfFirst { it.first == pointSize() }) { dialog, which ->
+                dialog.dismiss()
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putFloat(KEY_POINT_SIZE, POINT_SIZES[which].first).apply()
+                if (stations.isNotEmpty()) show(stations)
+                buildSettings()
+            }
+            .show()
+    }
+
+    /** Trefferradius in px: deutlich größer als der Punkt, mindestens eine Fingerkuppe (Android empfiehlt 48 dp Ziele). */
+    private fun touchRadius() = 32 * resources.displayMetrics.density * mapMarkerScale()
+
+    /**
+     * Fängt Tipps auf der Karte ab und sucht die Pegel im Umkreis des Fingers.
+     * Ein Pegel (oder einer klar am nächsten) wird gleich geöffnet, sonst kommt eine Auswahl.
+     */
+    private inner class StationTapOverlay : Overlay() {
+        private val point = android.graphics.Point()
+
+        override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+            val proj = mapView.projection
+            val located = stations.mapNotNull { s ->
+                val d = s.details ?: return@mapNotNull null
+                val lat = d.lat ?: return@mapNotNull null
+                val lon = d.lon ?: return@mapNotNull null
+                proj.toPixels(GeoPoint(lat, lon), point)
+                s to hypot(point.x - e.x, point.y - e.y)
+            }
+            val hits = TapPicker.pick(located, { it.second }, touchRadius()).map { it.first }
+            when {
+                hits.isEmpty() -> return false
+                hits.size == 1 -> select(hits[0])
+                else -> chooseAmong(hits)
+            }
+            return true
+        }
+    }
+
+    /** Mehrere Pegel liegen unter dem Finger: zur Auswahl anbieten, nächster zuerst. */
+    private fun chooseAmong(hits: List<Station>) {
+        val density = resources.displayMetrics.density
+        val adapter = object : ArrayAdapter<Station>(this, android.R.layout.simple_list_item_1, hits) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val tv = super.getView(position, convertView, parent) as TextView
+                val s = hits[position]
+                val level = levelText(s.reading.waterLevelCm)
+                tv.text = buildString {
+                    append(s.reading.name)
+                    append(" (").append(s.reading.river).append(")")
+                    if (level != null) append(" · ").append(level)
+                }
+                tv.textSize = 18f
+                tv.minHeight = dp(56)
+                tv.compoundDrawablePadding = dp(12)
+                val icon = FlowColors.markerBitmap(classOf(s), density * markerScale(), s.reading.trend).toDrawable(resources)
+                tv.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null)
+                return tv
+            }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Welcher Pegel?")
+            .setAdapter(adapter) { _, which -> select(hits[which]) }
+            .setNeutralButton("Hineinzoomen") { _, _ -> zoomTo(hits) }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    /** So weit hineinzoomen, dass die eng beieinander liegenden Pegel einzeln antippbar sind. */
+    private fun zoomTo(hits: List<Station>) {
+        val points = hits.mapNotNull { s -> s.details?.let { d -> if (d.lat != null && d.lon != null) GeoPoint(d.lat!!, d.lon!!) else null } }
+        if (points.isEmpty()) return
+        val box = BoundingBox.fromGeoPoints(points)
+        // Rand lassen, damit die Punkte nicht am Kartenrand kleben; bei fast gleicher Lage nicht ins Bodenlose zoomen
+        map.zoomToBoundingBox(box, true, dp(96), 15.0, 600L)
+    }
+
     // --- Alarme ---
 
     private fun chooseAlarmScope(s: Station) {
@@ -766,6 +860,9 @@ class MainActivity : AppCompatActivity() {
     /** Symbole auf der Karte wachsen mit der Schrift mit, aber gedämpft. */
     private fun markerScale(): Float = 1f + (resources.configuration.fontScale - 1f) * 0.5f
 
+    /** Für die Karte zusätzlich die gewählte Punktgröße. */
+    private fun mapMarkerScale(): Float = markerScale() * pointSize()
+
     private fun classLabel(c: FlowClass) = when (c) {
         FlowClass.UNKNOWN -> "unbekannt"
         FlowClass.LOW -> "niedrig"
@@ -815,6 +912,8 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "settings"
         private const val KEY_MAP_STYLE = "map_style"
         private const val KEY_RIVER_WIDTH = "river_width"
+        private const val KEY_POINT_SIZE = "point_size"
+        private val POINT_SIZES = listOf(1f to "Normal", 1.4f to "Groß", 1.8f to "Sehr groß")
         private const val KEY_FAVORITE = "favorite_hzb"
         private const val KEY_COLLAPSE_LEGEND = "collapse_legend"
         private const val KEY_COLLAPSE_SHEET = "collapse_sheet"

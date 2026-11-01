@@ -42,4 +42,7 @@ jobs:
           VERSION: ${{ inputs.release || github.ref_name }}
         run: |
           cp flussle-*.apk "flussle-$VERSION.apk" 2>/dev/null || true
-          gh release create "$VERSION" "flussle-$VERSION.apk" --target "$GITHUB_SHA" --title "Flüssle $VERSION" --generate-notes
+          # Versionen mit Bindestrich (z.B. v0.8-test1) sind Test-Versionen: als Vorab-Release, nicht als neueste Version
+          EXTRA=""
+          case "$VERSION" in *-*) EXTRA="--prerelease";; esac
+          gh release create "$VERSION" "flussle-$VERSION.apk" --target "$GITHUB_SHA" --title "Flüssle $VERSION" --generate-notes $EXTRA
