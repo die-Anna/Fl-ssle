@@ -11,8 +11,8 @@ android {
         applicationId = "at.hochwasser.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.8.2"
+        versionCode = 11
+        versionName = "0.8.3"
     }
 
     // In der CI kommt der feste Schlüssel aus dem Secret, damit jede Version als Update über die alte passt

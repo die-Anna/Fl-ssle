@@ -317,8 +317,9 @@ class MainActivity : AppCompatActivity() {
         val r = s.reading
         val cls = classOf(s)
         findViewById<View>(R.id.sheet).visibility = if (nav.selectedItemId == R.id.nav_map) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.sheet_name).text = r.name
-        findViewById<TextView>(R.id.sheet_river).text = r.river
+        // Der Fluss steht groß oben, der Ort des Pegels klein darunter
+        findViewById<TextView>(R.id.sheet_name).text = r.river
+        findViewById<TextView>(R.id.sheet_river).text = r.name
         findViewById<View>(R.id.sheet_icon).backgroundTintList =
             if (cls.isFlood) ColorStateList.valueOf(FlowColors.color(cls)) else null
 
@@ -416,7 +417,7 @@ class MainActivity : AppCompatActivity() {
             val r = s.reading
             val cls = classOf(s)
             val value = levelText(r.waterLevelCm) ?: r.dischargeM3s?.let { "${fmt(it)} m³/s" } ?: "–"
-            box.addView(row(cls, r.name, "${r.river} · ${classLabel(cls)}", value) {
+            box.addView(row(cls, r.river, "${r.name} · ${classLabel(cls)}", value) {
                 nav.selectedItemId = R.id.nav_map
                 map.controller.setZoom(maxOf(map.zoomLevelDouble, 12.0))
                 select(s)
@@ -472,10 +473,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun pickStationForAlarm() {
         if (stations.isEmpty()) { Toast.makeText(this, R.string.loading, Toast.LENGTH_SHORT).show(); return }
-        val list = stations.sortedBy { it.reading.name }
+        val list = stations.sortedWith(compareBy({ it.reading.river }, { it.reading.name }))
         MaterialAlertDialogBuilder(this)
             .setTitle("Pegel wählen")
-            .setItems(list.map { "${it.reading.name} (${it.reading.river})" }.toTypedArray()) { _, which -> chooseAlarmScope(list[which]) }
+            .setItems(list.map { "${it.reading.river} (${it.reading.name})" }.toTypedArray()) { _, which -> chooseAlarmScope(list[which]) }
             .setNegativeButton(R.string.close, null)
             .show()
     }
@@ -661,8 +662,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun chooseFavorite() {
         if (stations.isEmpty()) { Toast.makeText(this, R.string.loading, Toast.LENGTH_SHORT).show(); return }
-        val list = stations.sortedBy { it.reading.name }
-        val labels = listOf("Keiner (auffälligsten Pegel zeigen)") + list.map { "${it.reading.name} (${it.reading.river})" }
+        val list = stations.sortedWith(compareBy({ it.reading.river }, { it.reading.name }))
+        val labels = listOf("Keiner (auffälligsten Pegel zeigen)") + list.map { "${it.reading.river} (${it.reading.name})" }
         val checked = favorite()?.let { id -> list.indexOfFirst { it.reading.hzbNr == id } + 1 } ?: 0
         MaterialAlertDialogBuilder(this)
             .setTitle("Hauptpegel")
@@ -768,8 +769,8 @@ class MainActivity : AppCompatActivity() {
                 val s = hits[position]
                 val level = levelText(s.reading.waterLevelCm)
                 tv.text = buildString {
-                    append(s.reading.name)
-                    append(" (").append(s.reading.river).append(")")
+                    append(s.reading.river)
+                    append(" (").append(s.reading.name).append(")")
                     if (level != null) append(" · ").append(level)
                 }
                 tv.textSize = 18f
