@@ -11,8 +11,18 @@ android {
         applicationId = "at.hochwasser.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.8.1"
+        versionCode = 10
+        versionName = "0.8.2"
+    }
+
+    // In der CI kommt der feste Schlüssel aus dem Secret, damit jede Version als Update über die alte passt
+    System.getenv("FLUSSLE_KEYSTORE")?.takeIf { File(it).exists() }?.let { path ->
+        signingConfigs.getByName("debug") {
+            storeFile = File(path)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

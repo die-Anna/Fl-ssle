@@ -33,8 +33,8 @@ jobs:
           SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
         run: |
           if [ -n "$SIGNING_KEYSTORE" ]; then
-            mkdir -p ~/.android
-            echo "$SIGNING_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+            echo "$SIGNING_KEYSTORE" | base64 -d > "$RUNNER_TEMP/flussle.keystore"
+            echo "FLUSSLE_KEYSTORE=$RUNNER_TEMP/flussle.keystore" >> "$GITHUB_ENV"
           else
             echo "::warning::Secret SIGNING_KEYSTORE fehlt: APK bekommt einen Zufallsschlüssel und lässt sich nicht als Update installieren."
           fi
