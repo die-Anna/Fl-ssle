@@ -26,6 +26,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Tests der Datenlogik
         run: ./gradlew -PcoreOnly :core:test
+      # Immer mit demselben Schlüssel signieren, sonst lässt Android kein Update über die alte Version zu.
+      # Der Schlüssel liegt als Secret SIGNING_KEYSTORE (base64) im Repo, nicht im Code.
+      - name: Signierschlüssel einrichten
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE" ]; then
+            mkdir -p ~/.android
+            echo "$SIGNING_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "::warning::Secret SIGNING_KEYSTORE fehlt: APK bekommt einen Zufallsschlüssel und lässt sich nicht als Update installieren."
+          fi
       - name: APK bauen
         run: ./gradlew assembleDebug
       - name: APK umbenennen
