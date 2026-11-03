@@ -11,6 +11,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
 import android.view.View
 import android.util.TypedValue
 import android.widget.RemoteViews
@@ -25,6 +28,7 @@ import at.hochwasser.core.FlowClass
 import at.hochwasser.core.Station
 import at.hochwasser.core.TimeValue
 import at.hochwasser.core.VowisClient
+import at.hochwasser.core.WidgetLayout
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -108,11 +112,6 @@ class StationWidget : AppWidgetProvider() {
         fun render(context: Context, id: Int, station: Station?, message: String? = null, history: List<TimeValue> = emptyList()) {
             if (station != null) lastData[id] = station to history
             val views = RemoteViews(context.packageName, R.layout.widget_station)
-            val scale = FontScale.get(context)
-            views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_SP, 16f * scale)
-            views.setTextViewTextSize(R.id.widget_detail, TypedValue.COMPLEX_UNIT_SP, 13f * scale)
-            views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_SP, 20f * scale)
-            views.setTextViewTextSize(R.id.widget_class, TypedValue.COMPLEX_UNIT_SP, 13f * scale)
 
             val hzb = station?.reading?.hzbNr ?: stationFor(context, id)
             val open = Intent(context, MainActivity::class.java)
@@ -124,40 +123,68 @@ class StationWidget : AppWidgetProvider() {
             )
 
             if (station == null) {
+                setTextScale(views, FontScale.get(context))
                 views.setViewVisibility(R.id.widget_chart, View.GONE)
                 views.setViewVisibility(R.id.widget_chart_inline, View.GONE)
-                views.setTextViewText(R.id.widget_detail, message ?: context.getString(R.string.loading))
+                views.setViewVisibility(R.id.widget_meta, View.GONE)
+                views.setTextViewText(R.id.widget_value, "–")
+                views.setTextViewText(R.id.widget_sub, message ?: context.getString(R.string.loading))
             } else {
                 val r = station.reading
                 val cls = r.flowClass.takeUnless { it == FlowClass.UNKNOWN }
                     ?: FlowClass.fromDischarge(r.dischargeM3s, station.details)
                 val density = context.resources.displayMetrics.density
                 views.setImageViewBitmap(R.id.widget_icon, FlowColors.markerBitmap(cls, density * 1.4f, r.trend))
-                views.setTextViewText(R.id.widget_name, r.river)
-                views.setTextViewText(R.id.widget_detail, buildString {
+
+                // Durchfluss groß (der Verlauf zeigt ihn auch), sonst der Wasserstand
+                val (number, unit) = when {
+                    r.dischargeM3s != null -> String.format(Locale.GERMAN, "%.1f", r.dischargeM3s) to " m³/s"
+                    r.waterLevelCm != null -> String.format(Locale.GERMAN, "%.2f", r.waterLevelCm!! / 100.0) to " m"
+                    else -> "–" to ""
+                }
+                val value = SpannableString(number + unit).apply {
+                    setSpan(RelativeSizeSpan(0.6f), number.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                val sub = "${trendLabel(r.trend)} · ${classLabel(cls)}"
+                views.setTextViewText(R.id.widget_value, value)
+                views.setTextViewText(R.id.widget_sub, sub)
+                views.setTextColor(R.id.widget_sub, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
+                // Ort und Uhrzeit sind nebensächlich, man weiß ja, welchen Pegel man gewählt hat
+                views.setTextViewText(R.id.widget_meta, buildString {
                     append(r.name)
                     r.measuredAt?.let { append(" · ${clockFormat.format(it)} Uhr") }
                     if (message != null) append(" · $message")
                 })
-                val discharge = r.dischargeM3s?.let { String.format(Locale.GERMAN, "%.1f m³/s", it) }
-                val level = r.waterLevelCm?.let { String.format(Locale.GERMAN, "%.2f m", it / 100.0) }
-                views.setTextViewText(R.id.widget_value, level ?: discharge ?: "–")
-                views.setTextViewText(R.id.widget_class, classLabel(cls))
-                views.setTextColor(R.id.widget_class, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
-                // Ab 2 Zeilen groß unter der Zeile, bei 1 Zeile klein zwischen Name und Wert
+
                 val (widthDp, heightDp) = sizeDp(context, id)
-                val tall = heightDp >= 130
-                val big = if (tall) chartBitmap(context, station, history, widthDp - 24, (heightDp - 24 - 36 - 8).coerceIn(24, 120)) else null
-                // Platz in der Zeile: ohne Symbol, Abstände und Wert etwa ein Drittel davon
-                val inlineWidth = ((widthDp - 24 - 36 - 10 - 8 - 90) * 0.4).toInt()
-                val small = if (!tall && inlineWidth >= 40) chartBitmap(context, station, history, inlineWidth, 32) else null
-                if (big != null) views.setImageViewBitmap(R.id.widget_chart, big)
-                if (small != null) views.setImageViewBitmap(R.id.widget_chart_inline, small)
+                val systemScale = context.resources.configuration.fontScale
+                val plan = WidgetLayout.plan(widthDp, heightDp, FontScale.get(context), systemScale, value.toString(), sub)
+                setTextScale(views, plan.textScale)
+                val chart = if (plan.chart == WidgetLayout.Chart.NONE) null
+                    else chartBitmap(context, station, history, plan.chartWidth, plan.chartHeight)
+                val below = chart != null && plan.chart == WidgetLayout.Chart.BELOW
+                val inline = chart != null && plan.chart == WidgetLayout.Chart.INLINE
+                if (below) views.setImageViewBitmap(R.id.widget_chart, chart)
+                if (inline) views.setImageViewBitmap(R.id.widget_chart_inline, chart)
                 // Immer ausdrücklich setzen: der Launcher behält sonst die alte Kurve
-                views.setViewVisibility(R.id.widget_chart, if (big != null) View.VISIBLE else View.GONE)
-                views.setViewVisibility(R.id.widget_chart_inline, if (small != null) View.VISIBLE else View.GONE)
+                views.setViewVisibility(R.id.widget_chart, if (below) View.VISIBLE else View.GONE)
+                views.setViewVisibility(R.id.widget_chart_inline, if (inline) View.VISIBLE else View.GONE)
+                views.setViewVisibility(R.id.widget_meta, if (plan.showMeta) View.VISIBLE else View.GONE)
             }
             AppWidgetManager.getInstance(context).updateAppWidget(id, views)
+        }
+
+        private fun setTextScale(views: RemoteViews, scale: Float) {
+            views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_SP, WidgetLayout.VALUE_SP * scale)
+            views.setTextViewTextSize(R.id.widget_sub, TypedValue.COMPLEX_UNIT_SP, WidgetLayout.SUB_SP * scale)
+            views.setTextViewTextSize(R.id.widget_meta, TypedValue.COMPLEX_UNIT_SP, WidgetLayout.META_SP * scale)
+        }
+
+        private fun trendLabel(trend: Int?) = when {
+            trend == null -> "Tendenz ?"
+            trend > 0 -> "steigend"
+            trend < 0 -> "fallend"
+            else -> "gleichbleibend"
         }
 
         /** Tatsächliche Widget-Größe in dp. Hochformat: schmalste Breite und größte Höhe, Querformat umgekehrt. */

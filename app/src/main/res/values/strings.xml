@@ -16,5 +16,5 @@
     <string name="settings">Einstellungen</string>
     <string name="my_location">Mein Standort</string>
     <string name="close">Schließen</string>
-    <string name="widget_description">Zeigt Wert, Klasse und Tendenz eines Pegels</string>
+    <string name="widget_description">Zeigt Durchfluss, Tendenz und Verlauf eines Pegels</string>
 </resources>
