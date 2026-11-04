@@ -49,4 +49,12 @@ class WidgetLayoutTest {
         assertEquals(WidgetLayout.Chart.NONE, p.chart)
         assertEquals(1.6f, p.textScale)
     }
+
+    @Test
+    fun wideOneRowWidgetGivesChartMostOfTheWidth() {
+        // 1x4-Kachel: der Verlauf soll den Platz rechts vom Wert nutzen
+        val p = WidgetLayout.plan(340, 70, 1f, 1f, "12,3", "Ill · steigend · normal", " m³/s")
+        assertEquals(WidgetLayout.Chart.INLINE, p.chart)
+        assertTrue(p.chartWidth >= 120, "war ${p.chartWidth}")
+    }
 }

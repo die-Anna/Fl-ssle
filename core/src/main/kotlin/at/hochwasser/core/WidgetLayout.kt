@@ -21,9 +21,11 @@ object WidgetLayout {
     const val MIN_INLINE_WIDTH = 56
     /** Kleinster Faktor (App-Schrift × System-Schrift), auf den das Widget die Schrift verkleinert. */
     const val MIN_SCALE = 0.8f
+    /** Größe der Einheit im Verhältnis zur Zahl. */
+    const val UNIT_SIZE = 0.6f
 
     private const val LINE = 1.2f
-    private const val CHAR = 0.58f
+    private const val CHAR = 0.55f
 
     enum class Chart { NONE, INLINE, BELOW }
 
@@ -39,10 +41,11 @@ object WidgetLayout {
     /**
      * @param userScale Schriftgröße aus den App-Einstellungen
      * @param systemScale Schriftgröße des Systems (wirkt auf sp zusätzlich)
-     * @param value Text des großen Werts, z.B. „12,3 m³/s“
+     * @param value Zahl des großen Werts, z.B. „12,3“
+     * @param unit Einheit dahinter, z.B. „ m³/s“ (wird kleiner gezeichnet, siehe [UNIT_SIZE])
      * @param sub Text unter dem Wert, z.B. „steigend · normal“
      */
-    fun plan(widthDp: Int, heightDp: Int, userScale: Float, systemScale: Float, value: String, sub: String): Plan {
+    fun plan(widthDp: Int, heightDp: Int, userScale: Float, systemScale: Float, value: String, sub: String, unit: String = ""): Plan {
         val innerW = widthDp - 2 * PADDING
         val innerH = heightDp - 2 * PADDING
         var s = userScale
@@ -59,7 +62,8 @@ object WidgetLayout {
                     return Plan(s, Chart.BELOW, innerW, h.toInt(), meta)
                 }
                 // Nur eine Zeile hoch: kleiner Verlauf rechts neben dem Wert
-                val textW = max(value.length * VALUE_SP * k * CHAR, sub.length * SUB_SP * k * CHAR)
+                val valueChars = value.length + unit.length * UNIT_SIZE
+                val textW = max(valueChars * VALUE_SP * k * CHAR, sub.length * SUB_SP * k * CHAR)
                 val inlineW = innerW - ICON - GAP - textW - GAP
                 if (inlineW >= MIN_INLINE_WIDTH) {
                     val meta = innerH - rowH >= metaH
