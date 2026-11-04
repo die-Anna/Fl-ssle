@@ -31,7 +31,7 @@
 | 🗺️ **Karte** | Alle 45 Pegel des Landes auf einer OpenStreetMap-Karte, eingefärbt nach Abflussklasse von „niedrig“ bis HQ300. Der Pfeil im Punkt zeigt, ob der Fluss steigt oder fällt. Wahlweise im Kartenstil Standard oder Gelände. |
 | 📈 **Stationskarte** | Antippen zeigt Wasserstand, Abfluss, Klasse, Tendenz und den Verlauf der letzten 3 Tage. Ein weiterer Tipp öffnet das große Diagramm. |
 | ⭐ **Hauptpegel** | Mit dem Stern wird dein Fluss zum Hauptpegel und öffnet sich beim Start. |
-| 📱 **Widget** | Dein Lieblingspegel direkt am Startbildschirm, mit Wert, Klasse, Tendenz und ab 2 Zeilen Höhe dem Verlauf der letzten 3 Tage. Antippen öffnet die App bei diesem Pegel. |
+| 📱 **Widget** | Dein Lieblingspegel direkt am Startbildschirm, mit Durchfluss, Tendenz, Klasse und dem Verlauf der letzten 3 Tage. Antippen öffnet die App bei diesem Pegel. |
 | 🔔 **Alarme** | Benachrichtigung, sobald ein Pegel oder ein ganzer Fluss eine Hochwasserstufe erreicht. Geprüft wird alle 15 Minuten im Hintergrund. |
 | 🔠 **Gut lesbar** | Die Schriftgröße lässt sich in der App bis „Riesig“ einstellen. |
 | 👆 **Leicht zu treffen** | Pegel-Punkte lassen sich größer stellen, ein Tipp in die Nähe genügt, und liegen mehrere Pegel unter dem Finger, fragt die App nach. |
@@ -39,7 +39,7 @@
 
 ### Widget für den Startbildschirm
 
-Lange auf den Startbildschirm drücken, dann **Widgets → Flüssle** wählen und den Pegel aussuchen (mit Suche, der Hauptpegel steht oben). Ist das Widget mindestens 2 Zeilen hoch, zeigt es auch den Verlauf.
+Lange auf den Startbildschirm drücken, dann **Widgets → Flüssle** wählen und den Pegel aussuchen (mit Suche, der Hauptpegel steht oben). Ist das Widget mindestens 2 Zeilen hoch, steht der Verlauf groß unter dem Wert, bei einer Zeile klein daneben. Bei sehr großer Schrift verkleinert das Widget die Schrift nur so weit, dass der Verlauf sichtbar bleibt.
 
 <p align="center">
   <img src="docs/screenshots/widget.png" width="420" alt="Flüssle-Widget am Startbildschirm">
