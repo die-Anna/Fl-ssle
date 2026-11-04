@@ -24,10 +24,9 @@
             android:src="@drawable/ic_waves" />
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
-            android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
@@ -54,13 +53,16 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Kleiner Verlauf rechts, wenn das Widget nur eine Zeile hoch ist -->
+        <!-- Kleiner Verlauf rechts bei nur einer Zeile Höhe, nimmt die ganze restliche Breite ein -->
         <ImageView
             android:id="@+id/widget_chart_inline"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:adjustViewBounds="false"
             android:importantForAccessibility="no"
+            android:scaleType="fitXY"
             android:visibility="gone" />
     </LinearLayout>
 

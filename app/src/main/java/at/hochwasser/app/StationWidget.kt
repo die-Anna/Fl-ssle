@@ -143,7 +143,7 @@ class StationWidget : AppWidgetProvider() {
                     else -> "–" to ""
                 }
                 val value = SpannableString(number + unit).apply {
-                    setSpan(RelativeSizeSpan(0.6f), number.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(RelativeSizeSpan(WidgetLayout.UNIT_SIZE), number.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
                 val sub = "${trendLabel(r.trend)} · ${classLabel(cls)}"
                 views.setTextViewText(R.id.widget_value, value)
@@ -151,6 +151,8 @@ class StationWidget : AppWidgetProvider() {
                 views.setTextColor(R.id.widget_sub, if (cls.isFlood) FlowColors.color(cls) else Color.parseColor("#52606D"))
                 // Ort und Uhrzeit sind nebensächlich, man weiß ja, welchen Pegel man gewählt hat
                 views.setTextViewText(R.id.widget_meta, buildString {
+                    append(r.river)
+                    append(" · ")
                     append(r.name)
                     r.measuredAt?.let { append(" · ${clockFormat.format(it)} Uhr") }
                     if (message != null) append(" · $message")
@@ -158,7 +160,13 @@ class StationWidget : AppWidgetProvider() {
 
                 val (widthDp, heightDp) = sizeDp(context, id)
                 val systemScale = context.resources.configuration.fontScale
-                val plan = WidgetLayout.plan(widthDp, heightDp, FontScale.get(context), systemScale, value.toString(), sub)
+                var plan = WidgetLayout.plan(widthDp, heightDp, FontScale.get(context), systemScale, number, sub, unit)
+                if (!plan.showMeta) {
+                    // Keine Zeile für Fluss und Ort: den Fluss dann vor die Tendenz stellen
+                    val withRiver = "${r.river} · $sub"
+                    plan = WidgetLayout.plan(widthDp, heightDp, FontScale.get(context), systemScale, number, withRiver, unit)
+                    views.setTextViewText(R.id.widget_sub, withRiver)
+                }
                 setTextScale(views, plan.textScale)
                 val chart = if (plan.chart == WidgetLayout.Chart.NONE) null
                     else chartBitmap(context, station, history, plan.chartWidth, plan.chartHeight)
