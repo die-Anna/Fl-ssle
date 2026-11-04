@@ -8,3 +8,4 @@ captures/
 debug/
 release/
 *.apk
+.kotlin/
